@@ -119,16 +119,17 @@ during deployment.
 In addition the library checks for the following optional variables and adds
 them as custom tags automatically:
 
-| Sentry Tag | Environment Variable | Description |
-|------------|----------------------|-------------|
-| service_name | `SERVERLESS_SERVICE` | Serveless service name |
-| stage | `SERVERLESS_STAGE` | Serverless stage |
-| alias | `SERVERLESS_ALIAS` | Serverless alias, see [Serverless AWS Alias Plugin](https://github.com/hyperbrain/serverless-aws-alias) |
-| region | `SERVERLESS_REGION` | Serverless region name |
+| Environment Variable | Sentry Tag | Description |
+|----------------------|------------|-------------|
+| `SERVERLESS_SERVICE` | service_name |  Serveless service name |
+| `SERVERLESS_STAGE` | stage | Serverless stage |
+| `SERVERLESS_ALIAS` | alias | Serverless alias, see [Serverless AWS Alias Plugin](https://github.com/hyperbrain/serverless-aws-alias) |
+| `SERVERLESS_REGION` | region | Serverless region name |
 
 
 ## Usage
-For maximum flexibility this library is implemented as a wrapper around your original AWS Lambda handler code (your `handler.js` or similar). The
+For maximum flexibility this library is implemented as a wrapper around your
+original AWS Lambda handler code (your `handler.js` or similar). The
 `RavenLambdaWrapper` adds error and exception handling, and takes care
 of configuring the Raven client automatically.
 
@@ -156,6 +157,7 @@ const Raven = require("raven"); // Official `raven` module
 const RavenLambdaWrapper = require("serverless-sentry-lib"); // This helper library
 
 module.exports.hello = RavenLambdaWrapper.handler(Raven, (event, context, callback) => {
+  // Here follows your original Lambda handler code...
   callback(null, { message: 'Go Serverless! Your function executed successfully!', event });
 });
 ```
@@ -167,12 +169,15 @@ context information.
 
 
 ### Setting Custom Configuration Options
-In case you want more granular control over what is being forwarded to Sentry,
-there are many configuration options available to set on a function by function
-basis:
+As shown above you can use environment variables to control the Sentry
+integration. In some scenarios in which environment variables are not desired
+or in which custom logic needs to be executed, you can also pass in
+configuration options to the `RavenLambdaWrapper` directly:
 
-* `ravenClient` - Your Raven client.
-* `autoBreadcrumbs` - Automatically create breadcrumbs (see Sentry Raven docs, defaults to `true`)
+* `ravenClient` - Your Raven client. Don't forget to set this if you send your
+  own custom messages and exceptions to Sentry later in your code.
+* `autoBreadcrumbs` - Automatically create breadcrumbs (see Sentry Raven docs,
+  defaults to `true`)
 * `filterLocal` - don't report errors from local environments (defaults to `true`)
 * `captureErrors` - capture Lambda errors (defaults to `true`)
 * `captureUnhandledRejections` - capture unhandled exceptions (defaults to `true`)
@@ -188,7 +193,7 @@ const ravenConfig = {
   captureUnhandledRejections: true,
   captureMemoryWarnings: true,
   captureTimeoutWarnings: true,
-  ravenClient: require("raven")
+  ravenClient: require("raven") // don't forget!
 };
 module.exports.handler = RavenLambdaWrapper.handler(ravenConfig, (event, context, callback) => {
   // your Lambda Functions Handler code goes here...
@@ -212,7 +217,7 @@ object `sls_raven` is exposed that can be used to access the current Raven
 client instead. However, the use of `sls_raven` is deprecated and discouraged:
 
 ```js
-if (global.sls_raven) {
+if (global.sls_raven) { // DEPRECATED!
   global.sls_raven.captureMessage("Hello from Lambda", { level: "info" });
 }
 ```
@@ -259,13 +264,12 @@ Obviously Sentry reporting is only enabled if you wrap your code using the
 `RavenLambdaWrapper` as shown in the examples above. In addition, error
 reporting is only active if the `SENTRY_DSN` environment variable is set.
 This is an easy way to enable or disable reporting as a whole or for specific
-functions through your `serverless.yml` without changing any code, i.e. if you
-want to temporarily disable the reporting for testing.
+functions.
 
 In some cases it might be desirable to disable only error reporting itself but
 keep the advanced features such as timeout and low memory warnings in place.
 This can be achieved via setting the respective options in the
-`RavenLambdaWrapper` during initialization:
+environment variables or the `RavenLambdaWrapper` during initialization:
 
 ```js
 const RavenLambdaWrapper = require("serverless-sentry-lib");
