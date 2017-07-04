@@ -1,0 +1,37 @@
+{
+  "name": "serverless-sentry-lib",
+  "version": "1.0.0-rc.1",
+  "description": "Serverless Sentry Lib - Automatically send errors and exceptions to Sentry (https://sentry.io)",
+  "main": "index.js",
+  "author": "Andre Rabold",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arabold/serverless-sentry-lib.git"
+  },
+  "bugs": {
+    "url": "https://github.com/arabold/serverless-sentry-plugin/issues"
+  },
+  "homepage": "https://github.com/arabold/serverless-sentry-plugin",
+  "keywords": [
+    "serverless plugin sentry",
+    "serverless framework plugin",
+    "serverless applications",
+    "serverless plugins",
+    "api gateway",
+    "lambda",
+    "aws",
+    "aws lambda",
+    "amazon",
+    "amazon web services",
+    "serverless.com",
+    "sentry",
+    "getsentry.com"
+  ],
+  "devDependencies": {
+    "eslint": "^4.1.1"
+  },
+  "dependencies": {
+    "raven": "^2.1.0"
+  }
+}
