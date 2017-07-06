@@ -60,6 +60,10 @@ class _ {
 	static isNil(obj) {
 		return (obj === null || _.isUndefined(obj));
 	}
+
+	static get(obj, prop, defaultValue) {
+		return obj.hasOwnProperty(prop) ? obj[prop] : defaultValue;
+	}
 }
 
 
@@ -70,17 +74,25 @@ class _ {
  * @returns {undefined}
  */
 function installRaven(pluginConfig) {
+	const Raven = pluginConfig.ravenClient;
+	if (!Raven) {
+		console.error("Raven client not found.");
+	}
+
 	// Check for local environment
 	const isLocalEnv = process.env.IS_OFFLINE || process.env.IS_LOCAL ||!process.env.LAMBDA_TASK_ROOT;
 	if (pluginConfig.filterLocal && isLocalEnv) {
 		// Running locally.
+		console.warn("Sentry disabled in local environment");
+
+		Raven.config().install();
+		ravenInstalled = true;
 		return;
 	}
 
 	// We're merging the plugin config options with the Raven options. This
 	// allows us to control all aspects of Raven in a single location -
 	// our plugin configuration.
-	const Raven = pluginConfig.ravenClient;
 	Raven.config(
 		process.env.SENTRY_DSN,
 		_.extend({
@@ -246,12 +258,12 @@ class RavenLambdaWrapper {
 		}
 
 		const pluginConfigDefaults = {
-			autoBreadcrumbs: process.env.SENTRY_AUTO_BREADCRUMBS || true,
-			filterLocal: process.env.SENTRY_FILTER_LOCAL || true,
-			captureErrors: process.env.SENTRY_CAPTURE_ERRORS || true,
-			captureUnhandledRejections: process.env.SENTRY_CAPTURE_UNHANDLED || true,
-			captureMemoryWarnings: process.env.SENTRY_CAPTURE_MEMORY || true,
-			captureTimeoutWarnings: process.env.SENTRY_CAPTURE_TIMEOUTS || true,
+			autoBreadcrumbs: _.get(process.env, "SENTRY_AUTO_BREADCRUMBS", true),
+			filterLocal: _.get(process.env, "SENTRY_FILTER_LOCAL", true),
+			captureErrors: _.get(process.env, "SENTRY_CAPTURE_ERRORS", true),
+			captureUnhandledRejections: _.get(process.env, "SENTRY_CAPTURE_UNHANDLED", true),
+			captureMemoryWarnings: _.get(process.env, "SENTRY_CAPTURE_MEMORY", true),
+			captureTimeoutWarnings: _.get(process.env, "SENTRY_CAPTURE_TIMEOUTS", true),
 			ravenClient: null
 		};
 

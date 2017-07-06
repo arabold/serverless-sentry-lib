@@ -289,13 +289,23 @@ module.exports.handler = RavenLambdaWrapper.handler(ravenConfig, (event, context
 
 ## Version History
 
+### 1.0.0-rc.2
+
+* Fixed a problem with configuration via environment variables not working
+* Initialize (but disable) Sentry when running locally to avoid crashes in
+  user's code.
+
 ### 1.0.0-rc.1
 
 * First official release of this library.
 
 ### To-Dos
 
-* Simplify integration with the
-  [Serverless Sentry Plugin](https://github.com/arabold/serverless-sentry-plugin)
-  so all configuration options can be set via `serverless.yml`.
-* Write some tests. Seriously.
+- [x] Simplify integration with the
+      [Serverless Sentry Plugin](https://github.com/arabold/serverless-sentry-plugin)
+      so all configuration options can be set via `serverless.yml`.
+- [ ] Write some tests. Seriously.
+- [ ] Ensure all `captureException` and `captureMessage` haven been completed
+      before returning from the `RavenLambdaWrapper` call. This is especially
+      important if the Lambda context is initialized with
+      `context.callbackWaitsForEmptyEventLoop = false`
