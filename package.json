@@ -1,6 +1,6 @@
 {
   "name": "serverless-sentry-lib",
-  "version": "1.0.0-rc.2",
+  "version": "1.0.0",
   "description": "Serverless Sentry Lib - Automatically send errors and exceptions to Sentry (https://sentry.io)",
   "main": "index.js",
   "author": "Andre Rabold",
@@ -29,9 +29,9 @@
     "getsentry.com"
   ],
   "devDependencies": {
-    "eslint": "^4.1.1"
+    "eslint": "^4.8.0"
   },
-  "dependencies": {
-    "raven": "^2.1.0"
+  "peerDependencies": {
+    "raven": "2.x"
   }
 }

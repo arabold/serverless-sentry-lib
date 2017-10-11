@@ -289,6 +289,11 @@ module.exports.handler = RavenLambdaWrapper.handler(ravenConfig, (event, context
 
 ## Version History
 
+### 1.0.0
+* Fixed reporting bugs in local environment despite config telling otherwise.
+* Proper parsing of boolean configuration options from environment variables.
+* `raven-node` is a peer dependency now.
+
 ### 1.0.0-rc.2
 
 * Fixed a problem with configuration via environment variables not working

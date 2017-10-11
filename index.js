@@ -5,7 +5,7 @@
 
 /**
  * Whether Raven was installed or not
- * @type {Boolean}
+ * @type {boolean}
  */
 let ravenInstalled = false;
 
@@ -80,12 +80,14 @@ function installRaven(pluginConfig) {
 	}
 
 	// Check for local environment
-	const isLocalEnv = process.env.IS_OFFLINE || process.env.IS_LOCAL ||!process.env.LAMBDA_TASK_ROOT;
+	const isLocalEnv = process.env.IS_OFFLINE || process.env.IS_LOCAL || !process.env.LAMBDA_TASK_ROOT;
 	if (pluginConfig.filterLocal && isLocalEnv) {
 		// Running locally.
 		console.warn("Sentry disabled in local environment");
+		delete process.env.SENTRY_DSN; // otherwise raven will start reporting nonetheless
 
 		Raven.config().install();
+
 		ravenInstalled = true;
 		return;
 	}
@@ -152,8 +154,8 @@ function installTimers(pluginConfig, lambdaContext) {
 	}
 
 	function memoryWatchFunc(cb) {
-		var used = process.memoryUsage().rss / 1048576;
-		var p = (used / memoryLimit);
+		const used = process.memoryUsage().rss / 1048576;
+		const p = (used / memoryLimit);
 		if (p >= 0.75) {
 			const Raven = pluginConfig.ravenClient;
 			ravenInstalled && Raven.captureMessage("Low Memory Warning", {
@@ -231,21 +233,42 @@ function wrapCallback(pluginConfig, cb) {
 	};
 }
 
+/**
+ * Tries to convert any given value into a boolean `true`/`false`.
+ *
+ * @param {any} value - Value to parse
+ * @param {boolean} defaultValue - Default value to use if no valid value was passed
+ * @returns {boolean}
+ */
+function parseBoolean(value, defaultValue) {
+	const v = String(value).trim().toLowerCase();
+	if ([ "true", "t", "1", "yes", "y" ].includes(v)) {
+		return true;
+	}
+	else if ([ "false", "f", "0", "no", "n" ].includes(v)) {
+		return false;
+	}
+	else {
+		return defaultValue;
+	}
+}
+
 
 class RavenLambdaWrapper {
+
 
 	/**
 	 * Wrap a Lambda Functions Handler
 	 *
 	 * @see http://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-handler.html
 	 * @param {Object|Raven} pluginConfig - Raven client or an options object
-	 * @param {Boolean} [pluginConfig.ravenClient] - Raven client instance
-	 * @param {Boolean} [pluginConfig.autoBreadcrumbs] - Automatically create breadcrumbs (see Sentry Raven docs, default to `true`)
-	 * @param {Boolean} [pluginConfig.filterLocal] - don't report errors from local environments (defaults to `true`)
-	 * @param {Boolean} [pluginConfig.captureErrors] - capture Lambda errors (defaults to `true`)
-	 * @param {Boolean} [pluginConfig.captureUnhandledRejections] - capture unhandled exceptions (defaults to `true`)
-	 * @param {Boolean} [pluginConfig.captureMemoryWarnings] - monitor memory usage (defaults to `true`)
-	 * @param {Boolean} [pluginConfig.captureTimeoutWarnings] - monitor execution timeouts (defaults to `true`)
+	 * @param {boolean} [pluginConfig.ravenClient] - Raven client instance
+	 * @param {boolean} [pluginConfig.autoBreadcrumbs] - Automatically create breadcrumbs (see Sentry Raven docs, default to `true`)
+	 * @param {boolean} [pluginConfig.filterLocal] - don't report errors from local environments (defaults to `true`)
+	 * @param {boolean} [pluginConfig.captureErrors] - capture Lambda errors (defaults to `true`)
+	 * @param {boolean} [pluginConfig.captureUnhandledRejections] - capture unhandled exceptions (defaults to `true`)
+	 * @param {boolean} [pluginConfig.captureMemoryWarnings] - monitor memory usage (defaults to `true`)
+	 * @param {boolean} [pluginConfig.captureTimeoutWarnings] - monitor execution timeouts (defaults to `true`)
 	 * @param {Function} handler - Original Lambda function handler
 	 * @return {Function} - Wrapped Lambda function handler with Sentry instrumentation
 	 */
@@ -258,12 +281,12 @@ class RavenLambdaWrapper {
 		}
 
 		const pluginConfigDefaults = {
-			autoBreadcrumbs: _.get(process.env, "SENTRY_AUTO_BREADCRUMBS", true),
-			filterLocal: _.get(process.env, "SENTRY_FILTER_LOCAL", true),
-			captureErrors: _.get(process.env, "SENTRY_CAPTURE_ERRORS", true),
-			captureUnhandledRejections: _.get(process.env, "SENTRY_CAPTURE_UNHANDLED", true),
-			captureMemoryWarnings: _.get(process.env, "SENTRY_CAPTURE_MEMORY", true),
-			captureTimeoutWarnings: _.get(process.env, "SENTRY_CAPTURE_TIMEOUTS", true),
+			autoBreadcrumbs:            parseBoolean(_.get(process.env, "SENTRY_AUTO_BREADCRUMBS"),  true),
+			filterLocal:                parseBoolean(_.get(process.env, "SENTRY_FILTER_LOCAL"),      true),
+			captureErrors:              parseBoolean(_.get(process.env, "SENTRY_CAPTURE_ERRORS"),    true),
+			captureUnhandledRejections: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"), true),
+			captureMemoryWarnings:      parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"),    true),
+			captureTimeoutWarnings:     parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),  true),
 			ravenClient: null
 		};
 
