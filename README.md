@@ -115,6 +115,7 @@ during deployment.
 | `SENTRY_CAPTURE_UNHANDLED` | Enable capture unhandled exceptions (defaults to `true`) |
 | `SENTRY_CAPTURE_MEMORY` | Enable monitoring memory usage (defaults to `true`) |
 | `SENTRY_CAPTURE_TIMEOUTS` | Enable monitoring execution timeouts (defaults to `true`) |
+| `SENTRY_WAIT_EVENT_LOOP` | Set whether to wait for node event loop to be empty after callback (defaults to `true`) |
 
 In addition the library checks for the following optional variables and adds
 them as custom tags automatically:
@@ -183,6 +184,7 @@ configuration options to the `RavenLambdaWrapper` directly:
 * `captureUnhandledRejections` - capture unhandled exceptions (defaults to `true`)
 * `captureMemoryWarnings` - monitor memory usage (defaults to `true`)
 * `captureTimeoutWarnings` - monitor execution timeouts (defaults to `true`)
+* `callbackWaitsForEmptyEventLoop` - wait for node event loop to be empty after callback (defaults to `true`)
 
 ```js
 const RavenLambdaWrapper = require("serverless-sentry-lib");

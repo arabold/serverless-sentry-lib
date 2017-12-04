@@ -269,6 +269,7 @@ class RavenLambdaWrapper {
 	 * @param {boolean} [pluginConfig.captureUnhandledRejections] - capture unhandled exceptions (defaults to `true`)
 	 * @param {boolean} [pluginConfig.captureMemoryWarnings] - monitor memory usage (defaults to `true`)
 	 * @param {boolean} [pluginConfig.captureTimeoutWarnings] - monitor execution timeouts (defaults to `true`)
+	 * @param {boolean} [pluginConfig.callbackWaitsForEmptyEventLoop] - wait for node event loop to be empty after callback (defaults to `true`)
 	 * @param {Function} handler - Original Lambda function handler
 	 * @return {Function} - Wrapped Lambda function handler with Sentry instrumentation
 	 */
@@ -281,12 +282,13 @@ class RavenLambdaWrapper {
 		}
 
 		const pluginConfigDefaults = {
-			autoBreadcrumbs:            parseBoolean(_.get(process.env, "SENTRY_AUTO_BREADCRUMBS"),  true),
-			filterLocal:                parseBoolean(_.get(process.env, "SENTRY_FILTER_LOCAL"),      true),
-			captureErrors:              parseBoolean(_.get(process.env, "SENTRY_CAPTURE_ERRORS"),    true),
-			captureUnhandledRejections: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"), true),
-			captureMemoryWarnings:      parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"),    true),
-			captureTimeoutWarnings:     parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),  true),
+			autoBreadcrumbs:                parseBoolean(_.get(process.env, "SENTRY_AUTO_BREADCRUMBS"),  true),
+			filterLocal:                    parseBoolean(_.get(process.env, "SENTRY_FILTER_LOCAL"),      true),
+			captureErrors:                  parseBoolean(_.get(process.env, "SENTRY_CAPTURE_ERRORS"),    true),
+			captureUnhandledRejections:     parseBoolean(_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"), true),
+			captureMemoryWarnings:          parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"),    true),
+			captureTimeoutWarnings:         parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),  true),
+			callbackWaitsForEmptyEventLoop: parseBoolean(_.get(process.env, "SENTRY_WAIT_EVENT_LOOP"),   true),
 			ravenClient: null
 		};
 
@@ -308,6 +310,11 @@ class RavenLambdaWrapper {
 				// Directly invoke the original handler
 				handler(event, context, callback);
 				return;
+			}
+
+			// Set the context to not wait for empty event loop if specified as option
+			if (!pluginConfig.callbackWaitsForEmptyEventLoop) {
+				context.callbackWaitsForEmptyEventLoop = false;
 			}
 
 			const wrappedCtx   = _.extend({}, context);
