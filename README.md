@@ -289,6 +289,11 @@ module.exports.handler = RavenLambdaWrapper.handler(ravenConfig, (event, context
 
 ## Version History
 
+### 1.0.1
+* Fixed an issue with `context.callbackWaitsForEmptyEventLoop` not working properly if set
+  outside of `RavenLambdaWrapper.handler`. The `context` object is now retained and not
+  cloned anymore which should make things more robust.
+
 ### 1.0.0
 * Fixed reporting bugs in local environment despite config telling otherwise.
 * Proper parsing of boolean configuration options from environment variables.
