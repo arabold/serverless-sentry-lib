@@ -310,12 +310,11 @@ class RavenLambdaWrapper {
 				return;
 			}
 
-			const wrappedCtx   = _.extend({}, context);
-			wrappedCtx.done    = wrapCallback(pluginConfig, context.done);
-			wrappedCtx.fail    = err => wrappedCtx.done(err);
-			wrappedCtx.succeed = data => wrappedCtx.done(null, data);
+			context.done    = wrapCallback(pluginConfig, context.done.bind(context));
+			context.fail    = err => context.done(err);
+			context.succeed = data => context.done(null, data);
 
-			const wrappedCb    = wrapCallback(pluginConfig, callback);
+			callback = wrapCallback(pluginConfig, callback);
 
 			// Additional context to be stored with Raven events and messages
 			const ravenContext = {
@@ -392,7 +391,7 @@ class RavenLambdaWrapper {
 					}
 
 					// And finally invoke the original handler code
-					handler(event, wrappedCtx, wrappedCb);
+					handler(event, context, callback);
 				}
 				catch (err) {
 					// Catch and log synchronous exceptions thrown by the handler
