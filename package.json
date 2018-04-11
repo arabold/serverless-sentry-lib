@@ -29,7 +29,7 @@
     "getsentry.com"
   ],
   "devDependencies": {
-    "eslint": "^4.8.0"
+    "eslint": "^4.19.1"
   },
   "peerDependencies": {
     "raven": "2.x"
