@@ -306,8 +306,7 @@ class RavenLambdaWrapper {
 
 			if (!ravenInstalled) {
 				// Directly invoke the original handler
-				handler(event, context, callback);
-				return;
+				return handler(event, context, callback);
 			}
 
 			context.done    = wrapCallback(pluginConfig, context.done.bind(context));
@@ -391,7 +390,7 @@ class RavenLambdaWrapper {
 					}
 
 					// And finally invoke the original handler code
-					handler(event, context, callback);
+					return handler(event, context, callback);
 				}
 				catch (err) {
 					// Catch and log synchronous exceptions thrown by the handler
