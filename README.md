@@ -9,7 +9,7 @@
 ## About
 This library simplifies integration of Sentry's
 [node-raven](https://docs.sentry.io/clients/node/) library with AWS Lambda.
-The only supported platforms are Node.js 4.3.2 and 6.10.2. Python and Java
+The only supported platforms are Node.js 6.10 and 8.10. Python and Java
 support will require dedicated libraries. Pull requests are welcome!
 
 ### What is Raven and Sentry?
@@ -47,7 +47,7 @@ Serverless but developed independently and in my spare time.
 * Check out the examples below how to integrate it with your project
   by updating `serverless.yml` as well as your Lambda handler code.
 
-We use exclusively Node 4.3 features to ensure this code can run on AWS
+We use exclusively Node 6 features to ensure this code can run on AWS
 Lambda without any transpiling or further processing. We also do not use
 _any_ 3rd party node module other than `raven` itself.
 
@@ -289,12 +289,21 @@ module.exports.handler = RavenLambdaWrapper.handler(ravenConfig, (event, context
 
 ## Version History
 
+### 1.1.0
+
+* ⚠️ Dropped support for Node 4.3. AWS deprecates Node 4.3 starting July 31, 2018.
+* Added support for Node 8.10 async/await (Promises) function handlers. Thanks to 
+  [chechu](https://github.com/chechu) for his contribution.
+* Added test cases.
+
 ### 1.0.1
+
 * Fixed an issue with `context.callbackWaitsForEmptyEventLoop` not working properly if set
   outside of `RavenLambdaWrapper.handler`. The `context` object is now retained and not
   cloned anymore which should make things more robust.
 
 ### 1.0.0
+
 * Fixed reporting bugs in local environment despite config telling otherwise.
 * Proper parsing of boolean configuration options from environment variables.
 * `raven-node` is a peer dependency now.
@@ -314,7 +323,8 @@ module.exports.handler = RavenLambdaWrapper.handler(ravenConfig, (event, context
 - [x] Simplify integration with the
       [Serverless Sentry Plugin](https://github.com/arabold/serverless-sentry-plugin)
       so all configuration options can be set via `serverless.yml`.
-- [ ] Write some tests. Seriously.
+- [x] Write some tests. Seriously.
+- [x] Add more test cases. Check the source for some to-dos!
 - [ ] Ensure all `captureException` and `captureMessage` haven been completed
       before returning from the `RavenLambdaWrapper` call. This is especially
       important if the Lambda context is initialized with

@@ -24,7 +24,7 @@ let ravenInstalled = false;
 global.sls_raven = null;
 
 /**
- * Assorted Helper Functions loosely mimicing [lodash](https://lodash.com/).
+ * Assorted Helper Functions loosely mimicking [lodash](https://lodash.com/).
  */
 class _ {
 	static extend(origin, add) {
@@ -149,7 +149,10 @@ function installTimers(pluginConfig, lambdaContext) {
 	function timeoutErrorFunc(cb) {
 		const Raven = pluginConfig.ravenClient;
 		ravenInstalled && Raven.captureMessage("Function Timed Out", {
-			level: "error"
+			level: "error",
+			extra: {
+				TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis()
+			}
 		}, cb);
 	}
 
@@ -256,7 +259,6 @@ function parseBoolean(value, defaultValue) {
 
 class RavenLambdaWrapper {
 
-
 	/**
 	 * Wrap a Lambda Functions Handler
 	 *
@@ -309,11 +311,20 @@ class RavenLambdaWrapper {
 				return handler(event, context, callback);
 			}
 
-			context.done    = wrapCallback(pluginConfig, context.done.bind(context));
-			context.fail    = err => context.done(err);
-			context.succeed = data => context.done(null, data);
-
-			callback = wrapCallback(pluginConfig, callback);
+			const originalCallbacks = {
+				done: context.done.bind(context),
+				succeed: context.succeed.bind(context),
+				fail: context.fail.bind(context),
+				callback: callback,
+			};
+			context.done = _.isFunction(originalCallbacks.done) ?
+				wrapCallback(pluginConfig, originalCallbacks.done) : originalCallbacks.done;
+			context.fail = _.isFunction(originalCallbacks.fail) ?
+				wrapCallback(pluginConfig, originalCallbacks.fail) : originalCallbacks.fail;
+			context.succeed = _.isFunction(originalCallbacks.succeed) ?
+				wrapCallback(pluginConfig, (err, result) => originalCallbacks.succeed(result)).bind(null, null) : originalCallbacks.succeed;
+			callback = originalCallbacks.callback ?
+				wrapCallback(pluginConfig, originalCallbacks.callback) : originalCallbacks.callback;
 
 			// Additional context to be stored with Raven events and messages
 			const ravenContext = {
@@ -390,7 +401,27 @@ class RavenLambdaWrapper {
 					}
 
 					// And finally invoke the original handler code
-					return handler(event, context, callback);
+					const promise = handler(event, context, callback);
+					if (promise && _.isFunction(promise.then) && !callback) {
+						// don't forget to stop timers
+						return promise
+						.then((...data) => {
+							clearTimers();
+							return Promise.resolve(...data);
+						})
+						.catch(err => {
+							clearTimers();
+							if (ravenInstalled && err && pluginConfig.captureErrors) {
+								const Raven = pluginConfig.ravenClient;
+								return new Promise((resolve, reject) => Raven.captureException(err, {}, () => {
+									reject(err);
+								}));
+							}
+							else {
+								return Promise.reject(err);
+							}
+						});
+					}
 				}
 				catch (err) {
 					// Catch and log synchronous exceptions thrown by the handler
@@ -406,9 +437,7 @@ class RavenLambdaWrapper {
 					captureUnhandled(err);
 				}
 			});
-
 		};
-
 	}
 }
 
