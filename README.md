@@ -289,6 +289,10 @@ module.exports.handler = RavenLambdaWrapper.handler(ravenConfig, (event, context
 
 ## Version History
 
+### 1.1.1
+
+* Fixed main entry point in `package.json`
+
 ### 1.1.0
 
 * ⚠️ Dropped support for Node 4.3. AWS deprecates Node 4.3 starting July 31, 2018.

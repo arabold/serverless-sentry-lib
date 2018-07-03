@@ -1,8 +1,8 @@
 {
   "name": "serverless-sentry-lib",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Serverless Sentry Lib - Automatically send errors and exceptions to Sentry (https://sentry.io)",
-  "main": "index.js",
+  "main": "src/index.js",
   "author": "Andre Rabold",
   "license": "MIT",
   "repository": {
