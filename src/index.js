@@ -402,7 +402,7 @@ class RavenLambdaWrapper {
 
 					// And finally invoke the original handler code
 					const promise = handler(event, context, callback);
-					if (promise && _.isFunction(promise.then) && !callback) {
+					if (promise && _.isFunction(promise.then)) {
 						// don't forget to stop timers
 						return promise
 						.then((...data) => {
@@ -422,6 +422,9 @@ class RavenLambdaWrapper {
 							}
 						});
 					}
+					// Returning non-Promise values would be meaningless for lambda.
+					// But inherit the behavior of the original handler.
+					return promise;
 				}
 				catch (err) {
 					// Catch and log synchronous exceptions thrown by the handler
