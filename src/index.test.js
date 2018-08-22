@@ -147,7 +147,7 @@ describe("RavenLambdaWrapper", () => {
 				};
 
 				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
-				return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled
+				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.fulfilled
 				.then(result => {
 					expect(result).to.have.property("message").that.is.a("string");
 				});
@@ -159,7 +159,7 @@ describe("RavenLambdaWrapper", () => {
 				};
 
 				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
-				return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.rejectedWith("Test Error");
+				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error");
 			});
 		});
 	});
@@ -314,7 +314,7 @@ describe("RavenLambdaWrapper", () => {
 				};
 
 				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
-				return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled
+				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.fulfilled
 				.then(result => {
 					expect(result).to.have.property("message").that.is.a("string");
 				});
@@ -326,7 +326,7 @@ describe("RavenLambdaWrapper", () => {
 				};
 
 				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
-				return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.rejectedWith("Test Error");
+				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error");
 			});
 
 			it("should capture rejection", () => {
@@ -336,7 +336,7 @@ describe("RavenLambdaWrapper", () => {
 
 				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
 				const spy = sandbox.spy(RavenMock, "captureException");
-				return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.rejectedWith("Test Error")
+				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error")
 				.then(() => {
 					expect(spy).to.be.calledOnce;
 					expect(spy).to.be.calledWith(sinon.match.instanceOf(Error).and(sinon.match.has("message", "Test Error")));

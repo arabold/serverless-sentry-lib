@@ -28,6 +28,9 @@
     "sentry",
     "getsentry.com"
   ],
+  "scripts": {
+    "test": "mocha src/*.test.js"
+  },
   "devDependencies": {
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
