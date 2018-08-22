@@ -307,6 +307,11 @@ module.exports.handler = RavenLambdaWrapper.handler(ravenConfig, (event, context
 
 ## Version History
 
+### 1.1.2
+
+* Fixed async/await (Promises) handling in Node 8.10. Thanks to 
+  [shouki-s](https://github.com/shouki-s) for the contribution.
+
 ### 1.1.1
 
 * Fixed main entry point in `package.json`

@@ -1,6 +1,6 @@
 {
   "name": "serverless-sentry-lib",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Serverless Sentry Lib - Automatically send errors and exceptions to Sentry (https://sentry.io)",
   "main": "src/index.js",
   "author": "Andre Rabold",
@@ -29,12 +29,13 @@
     "getsentry.com"
   ],
   "scripts": {
-    "test": "mocha src/*.test.js"
+    "test": "mocha src/*.test.js",
+    "lint": "eslint src/"
   },
   "devDependencies": {
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
-    "eslint": "^4.19.1",
+    "eslint": "^5.4.0",
     "mocha": "^5.2.0",
     "sinon": "^6.0.1",
     "sinon-chai": "^3.2.0"
