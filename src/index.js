@@ -290,9 +290,9 @@ class RavenLambdaWrapper {
 			captureErrors:              parseBoolean(_.get(process.env, "SENTRY_CAPTURE_ERRORS"),    true),
 			captureUnhandledRejections: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"), true),
 			captureMemoryWarnings:      parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"),    true),
-			captureTimeoutWarnings:     parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),  true),
-			printEventToStdout: 				parseBoolean(_.get(process.env, "SENTRY_PRINT_EVENT_TO_STDOUT"), false),
-			filterEventsFields: 				_.get(process.env, "SENTRY_FILTER_EVENT_FIELDS", ""),
+			captureTimeoutWarnings:			parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),  true),
+			printEventToStdout:					parseBoolean(_.get(process.env, "SENTRY_PRINT_EVENT_TO_STDOUT"), false),
+			filterEventsFields:					_.get(process.env, "SENTRY_FILTER_EVENT_FIELDS", ""),
 			ravenClient: null
 		};
 
