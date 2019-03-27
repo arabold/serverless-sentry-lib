@@ -291,8 +291,8 @@ class RavenLambdaWrapper {
 			captureUnhandledRejections: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"), true),
 			captureMemoryWarnings:      parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"),    true),
 			captureTimeoutWarnings:     parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),  true),
-			filterEventsFields: _.get(process.env, "SENTRY_FILTER_EVENT_FIELDS",""),
-			printEventToStdout: parseBoolean(_.get(process.env, "SENTRY_PRINT_EVENT_TO_STDOUT"), false),
+			printEventToStdout: 				parseBoolean(_.get(process.env, "SENTRY_PRINT_EVENT_TO_STDOUT"), false),
+			filterEventsFields: 				_.get(process.env, "SENTRY_FILTER_EVENT_FIELDS", ""),
 			ravenClient: null
 		};
 
@@ -332,10 +332,10 @@ class RavenLambdaWrapper {
 
 			// filter out no needed fields from event
 			const filterEventsFieldsArray = pluginConfig.filterEventsFields.split(",");
-			const eventForAdditionalContext = JSON.parse(JSON.stringify(event));
+			const eventForAdditionalContext = Object.assign({}, event);
 			filterEventsFieldsArray.forEach(field => {
 				if (eventForAdditionalContext[field.trim()]) {
-					delete eventForAdditionalContext[field.trim()]
+					delete eventForAdditionalContext[field.trim()];
 				}
 			});
 
