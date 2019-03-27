@@ -245,10 +245,10 @@ function wrapCallback(pluginConfig, cb) {
  */
 function parseBoolean(value, defaultValue) {
 	const v = String(value).trim().toLowerCase();
-	if ([ "true", "t", "1", "yes", "y" ].includes(v)) {
+	if (["true", "t", "1", "yes", "y"].includes(v)) {
 		return true;
 	}
-	else if ([ "false", "f", "0", "no", "n" ].includes(v)) {
+	else if (["false", "f", "0", "no", "n"].includes(v)) {
 		return false;
 	}
 	else {
@@ -271,6 +271,8 @@ class RavenLambdaWrapper {
 	 * @param {boolean} [pluginConfig.captureUnhandledRejections] - capture unhandled exceptions (defaults to `true`)
 	 * @param {boolean} [pluginConfig.captureMemoryWarnings] - monitor memory usage (defaults to `true`)
 	 * @param {boolean} [pluginConfig.captureTimeoutWarnings] - monitor execution timeouts (defaults to `true`)
+	 * @param {boolean} [pluginConfig.filterEventsFields] - filter out list of fields from the event data (defaults to ''.Example for not empty:'body,headers')
+	 * @param {boolean} [pluginConfig.printEventToStdout] - print the event with console log (defaults to `[]`)
 	 * @param {Function} handler - Original Lambda function handler
 	 * @return {Function} - Wrapped Lambda function handler with Sentry instrumentation
 	 */
@@ -283,12 +285,14 @@ class RavenLambdaWrapper {
 		}
 
 		const pluginConfigDefaults = {
-			autoBreadcrumbs:            parseBoolean(_.get(process.env, "SENTRY_AUTO_BREADCRUMBS"),  true),
-			filterLocal:                parseBoolean(_.get(process.env, "SENTRY_FILTER_LOCAL"),      true),
-			captureErrors:              parseBoolean(_.get(process.env, "SENTRY_CAPTURE_ERRORS"),    true),
+			autoBreadcrumbs: parseBoolean(_.get(process.env, "SENTRY_AUTO_BREADCRUMBS"), true),
+			filterLocal: parseBoolean(_.get(process.env, "SENTRY_FILTER_LOCAL"), true),
+			captureErrors: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_ERRORS"), true),
 			captureUnhandledRejections: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"), true),
-			captureMemoryWarnings:      parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"),    true),
-			captureTimeoutWarnings:     parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),  true),
+			captureMemoryWarnings: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"), true),
+			captureTimeoutWarnings: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"), true),
+			filterEventsFields: _.get(process.env, "SENTRY_FILTER_EVENT_FIELDS",""),
+			printEventToStdout: parseBoolean(_.get(process.env, "SENTRY_PRINT_EVENT_TO_STDOUT"), false),
 			ravenClient: null
 		};
 
@@ -326,10 +330,19 @@ class RavenLambdaWrapper {
 			callback = originalCallbacks.callback ?
 				wrapCallback(pluginConfig, originalCallbacks.callback) : originalCallbacks.callback;
 
+			// filter out no needed fields from event
+			const filterEventsFieldsArray = pluginConfig.filterEventsFields.split(",");
+			const eventForAdditionalContext = JSON.parse(JSON.stringify(event));
+			filterEventsFieldsArray.forEach(field => {
+				if (eventForAdditionalContext[field.trim()]) {
+					delete eventForAdditionalContext[field.trim()]
+				}
+			});
+
 			// Additional context to be stored with Raven events and messages
 			const ravenContext = {
 				extra: {
-					Event: event,
+					Event: eventForAdditionalContext,
 					Context: context
 				},
 				tags: {}
@@ -405,22 +418,26 @@ class RavenLambdaWrapper {
 					if (promise && _.isFunction(promise.then)) {
 						// don't forget to stop timers
 						return promise
-						.then((...data) => {
-							clearTimers();
-							return Promise.resolve(...data);
-						})
-						.catch(err => {
-							clearTimers();
-							if (ravenInstalled && err && pluginConfig.captureErrors) {
-								const Raven = pluginConfig.ravenClient;
-								return new Promise((resolve, reject) => Raven.captureException(err, {}, () => {
-									reject(err);
-								}));
-							}
-							else {
-								return Promise.reject(err);
-							}
-						});
+							.then((...data) => {
+								clearTimers();
+								return Promise.resolve(...data);
+							})
+							.catch(err => {
+								clearTimers();
+								if (pluginConfig.printEventToStdout) {
+									console.log("Processing event:", event);
+								}
+								if (ravenInstalled && err && pluginConfig.captureErrors) {
+									const Raven = pluginConfig.ravenClient;
+									return new Promise((resolve, reject) => Raven.captureException(err, {}, () => {
+
+										reject(err);
+									}));
+								}
+								else {
+									return Promise.reject(err);
+								}
+							});
 					}
 					// Returning non-Promise values would be meaningless for lambda.
 					// But inherit the behavior of the original handler.
