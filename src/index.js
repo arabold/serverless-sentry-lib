@@ -271,8 +271,8 @@ class RavenLambdaWrapper {
 	 * @param {boolean} [pluginConfig.captureUnhandledRejections] - capture unhandled exceptions (defaults to `true`)
 	 * @param {boolean} [pluginConfig.captureMemoryWarnings] - monitor memory usage (defaults to `true`)
 	 * @param {boolean} [pluginConfig.captureTimeoutWarnings] - monitor execution timeouts (defaults to `true`)
+ 	 * @param {boolean} [pluginConfig.printEventToStdout] - print the event with console log (defaults to `false`)
 	 * @param {boolean} [pluginConfig.filterEventsFields] - filter out list of fields from the event data (defaults to ''.Example for not empty:'body,headers')
-	 * @param {boolean} [pluginConfig.printEventToStdout] - print the event with console log (defaults to `[]`)
 	 * @param {Function} handler - Original Lambda function handler
 	 * @return {Function} - Wrapped Lambda function handler with Sentry instrumentation
 	 */
