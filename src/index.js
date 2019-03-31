@@ -131,13 +131,17 @@ let memoryWatch, timeoutWarning, timeoutError;
  *
  * @param {Object} pluginConfig
  * @param {Object} lambdaContext
+ * @param {Object} event
  */
-function installTimers(pluginConfig, lambdaContext) {
+function installTimers(pluginConfig, lambdaContext,event) {
 	const timeRemaining = lambdaContext.getRemainingTimeInMillis();
 	const memoryLimit = lambdaContext.memoryLimitInMB;
 
 	function timeoutWarningFunc(cb) {
 		const Raven = pluginConfig.ravenClient;
+		if (pluginConfig.printEventToStdout) {
+			console.log("Processing event for timeout warning:", event);
+		}
 		ravenInstalled && Raven.captureMessage("Function Execution Time Warning", {
 			level: "warning",
 			extra: {
@@ -148,6 +152,9 @@ function installTimers(pluginConfig, lambdaContext) {
 
 	function timeoutErrorFunc(cb) {
 		const Raven = pluginConfig.ravenClient;
+		if (pluginConfig.printEventToStdout) {
+			console.log("Processing event for timeout error:", event);
+		}
 		ravenInstalled && Raven.captureMessage("Function Timed Out", {
 			level: "error",
 			extra: {
@@ -160,6 +167,9 @@ function installTimers(pluginConfig, lambdaContext) {
 		const used = process.memoryUsage().rss / 1048576;
 		const p = (used / memoryLimit);
 		if (p >= 0.75) {
+			if (pluginConfig.printEventToStdout) {
+				console.log("Processing event for memory error:", event);
+			}
 			const Raven = pluginConfig.ravenClient;
 			ravenInstalled && Raven.captureMessage("Low Memory Warning", {
 				level: "warning",
@@ -334,8 +344,8 @@ class RavenLambdaWrapper {
 			const filterEventsFieldsArray = pluginConfig.filterEventsFields.split(",");
 			const eventForAdditionalContext = Object.assign({}, event);
 			filterEventsFieldsArray.forEach(field => {
-			  if (eventForAdditionalContext[field.trim()]) {
-			    delete eventForAdditionalContext[field.trim()];
+				if (eventForAdditionalContext[field.trim()]) {
+					delete eventForAdditionalContext[field.trim()];
 				}
 			});
 
@@ -390,7 +400,7 @@ class RavenLambdaWrapper {
 
 				// Monitor for timeouts and memory usage
 				// The timers will be removed in the wrappedCtx and wrappedCb below
-				installTimers(pluginConfig, context);
+				installTimers(pluginConfig, context,event);
 
 				try {
 					if (pluginConfig.autoBreadcrumbs) {
@@ -425,7 +435,7 @@ class RavenLambdaWrapper {
 						.catch(err => {
 							clearTimers();
 							if (pluginConfig.printEventToStdout) {
-								console.log("Processing event:", event);
+								console.log("Processing event error exception:", event);
 							}
 							if (ravenInstalled && err && pluginConfig.captureErrors) {
 								const Raven = pluginConfig.ravenClient;
