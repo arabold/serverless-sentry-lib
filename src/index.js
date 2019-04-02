@@ -133,7 +133,7 @@ let memoryWatch, timeoutWarning, timeoutError;
  * @param {Object} lambdaContext
  * @param {Object} event
  */
-function installTimers(pluginConfig, lambdaContext,event) {
+function installTimers(pluginConfig, lambdaContext, event) {
 	const timeRemaining = lambdaContext.getRemainingTimeInMillis();
 	const memoryLimit = lambdaContext.memoryLimitInMB;
 
@@ -191,8 +191,11 @@ function installTimers(pluginConfig, lambdaContext,event) {
 
 	if (pluginConfig.captureTimeoutWarnings) {
 		// We schedule the warning at half the maximum execution time and
-		// the error a few milliseconds before the actual timeout happens.
 		timeoutWarning = setTimeout(timeoutWarningFunc, timeRemaining / 2);
+	}
+
+	if (pluginConfig.captureTimeoutErrors) {
+		// the error a few milliseconds before the actual timeout happens.
 		timeoutError = setTimeout(timeoutErrorFunc, Math.max(timeRemaining - 500, 0));
 	}
 
@@ -280,7 +283,8 @@ class RavenLambdaWrapper {
 	 * @param {boolean} [pluginConfig.captureErrors] - capture Lambda errors (defaults to `true`)
 	 * @param {boolean} [pluginConfig.captureUnhandledRejections] - capture unhandled exceptions (defaults to `true`)
 	 * @param {boolean} [pluginConfig.captureMemoryWarnings] - monitor memory usage (defaults to `true`)
-	 * @param {boolean} [pluginConfig.captureTimeoutWarnings] - monitor execution timeouts (defaults to `true`)
+	 * @param {boolean} [pluginConfig.captureTimeoutWarnings] - monitor execution timeouts warnings (defaults to `true`)
+	 * @param {boolean} [pluginConfig.captureTimeoutErrors] - monitor execution timeouts errors (defaults to `true`)
  	 * @param {boolean} [pluginConfig.printEventToStdout] - print the event with console log (defaults to `false`)
 	 * @param {boolean} [pluginConfig.filterEventsFields] - filter out list of fields from the event data (defaults to ''.Example for not empty:'body,headers')
 	 * @param {Function} handler - Original Lambda function handler
@@ -301,6 +305,7 @@ class RavenLambdaWrapper {
 			captureUnhandledRejections: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"), true),
 			captureMemoryWarnings:      parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"),    true),
 			captureTimeoutWarnings:     parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),  true),
+			captureTimeoutErrors:       parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS_ERRORS"),  true),
 			printEventToStdout:         parseBoolean(_.get(process.env, "SENTRY_PRINT_EVENT_TO_STDOUT"), false),
 			filterEventsFields:         _.get(process.env, "SENTRY_FILTER_EVENT_FIELDS", ""),
 			ravenClient: null
