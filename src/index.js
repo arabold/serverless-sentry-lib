@@ -140,7 +140,7 @@ function installTimers(pluginConfig, lambdaContext, event) {
 	function timeoutWarningFunc(cb) {
 		const Raven = pluginConfig.ravenClient;
 		if (pluginConfig.printEventToStdout) {
-			console.log("Processing event for timeout warning:", event);
+			console.log("Processing event for timeout warning: " + JSON.stringify(event));
 		}
 		ravenInstalled && Raven.captureMessage("Function Execution Time Warning", {
 			level: "warning",
@@ -153,7 +153,7 @@ function installTimers(pluginConfig, lambdaContext, event) {
 	function timeoutErrorFunc(cb) {
 		const Raven = pluginConfig.ravenClient;
 		if (pluginConfig.printEventToStdout) {
-			console.log("Processing event for timeout error:", event);
+			console.log("Processing event for timeout error: " + JSON.stringify(event));
 		}
 		ravenInstalled && Raven.captureMessage("Function Timed Out", {
 			level: "error",
@@ -168,7 +168,7 @@ function installTimers(pluginConfig, lambdaContext, event) {
 		const p = (used / memoryLimit);
 		if (p >= 0.75) {
 			if (pluginConfig.printEventToStdout) {
-				console.log("Processing event for memory error:", event);
+				console.log("Processing event for memory error: " + JSON.stringify(event));
 			}
 			const Raven = pluginConfig.ravenClient;
 			ravenInstalled && Raven.captureMessage("Low Memory Warning", {
@@ -440,7 +440,7 @@ class RavenLambdaWrapper {
 						.catch(err => {
 							clearTimers();
 							if (pluginConfig.printEventToStdout) {
-								console.log("Processing event error exception:", event);
+								console.log("Processing event error exception: " + JSON.stringify(event));
 							}
 							if (ravenInstalled && err && pluginConfig.captureErrors) {
 								const Raven = pluginConfig.ravenClient;
