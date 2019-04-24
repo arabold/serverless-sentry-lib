@@ -18,7 +18,7 @@ let ravenInstalled = false;
  * @type {Raven}
  *
  * @example
- * const Raven = require('raven');
+ * const Raven = require('@sentry/node');;
  * Raven.captureException(new Error("My Error"));
  */
 global.sls_raven = null;
@@ -86,7 +86,7 @@ function installRaven(pluginConfig) {
 		console.warn("Sentry disabled in local environment");
 		delete process.env.SENTRY_DSN; // otherwise raven will start reporting nonetheless
 
-		Raven.config().install();
+		Raven.init();
 
 		ravenInstalled = true;
 		return;
@@ -95,9 +95,9 @@ function installRaven(pluginConfig) {
 	// We're merging the plugin config options with the Raven options. This
 	// allows us to control all aspects of Raven in a single location -
 	// our plugin configuration.
-	Raven.config(
-		process.env.SENTRY_DSN,
+	Raven.init(
 		_.extend({
+			dns: process.env.SENTRY_DSN,
 			release: process.env.SENTRY_RELEASE,
 			environment: isLocalEnv ? "Local" : process.env.SENTRY_ENVIRONMENT,
 			tags: {
@@ -112,7 +112,7 @@ function installRaven(pluginConfig) {
 				region: process.env.SERVERLESS_REGION || process.env.AWS_REGION
 			}
 		}, pluginConfig)
-	).install();
+	);
 
 	// Register this instance globally for backward compatibility
 	// with serverless-sentry-plugin 0.2.x/0.3.x

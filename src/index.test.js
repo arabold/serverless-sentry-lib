@@ -14,7 +14,7 @@ chai.use(require("sinon-chai"));
 const sandbox = sinon.createSandbox();
 
 const RavenMock = {
-	config: () => ({ install: () => {} }),
+	init: () =>  {},
 	captureBreadcrumb: () => {},
 	captureMessage: (msg, context, cb) => {
 		cb && process.nextTick(cb);
@@ -454,7 +454,7 @@ describe("RavenLambdaWrapper", () => {
 							sinon.match.func.or(undefined)
 						);
 						// The callback happens 500 msecs before Lambda would time out
-						expect(spy.secondCall.args[1].extra.TimeRemainingInMsec).to.be.lessThan(500).and.above(400);
+						expect(spy.secondCall.args[1].extra.TimeRemainingInMsec).to.be.lessThan(501).and.above(400);
 					});
 				});
 			});
