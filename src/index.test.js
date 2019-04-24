@@ -15,16 +15,17 @@ const sandbox = sinon.createSandbox();
 
 const SentryMock = {
 	init: () =>  {},
-	captureBreadcrumb: () => {},
-	captureMessage: (msg, context, cb) => {
-		cb && process.nextTick(cb);
+	addBreadcrumb: () => {},
+	captureMessage: (msg, context) => {
+		
 	},
-	captureException: (err, context, cb) => {
-		cb && process.nextTick(cb);
+	captureException: (err, context) => {
+		
 	},
-	context: (context, cb) => {
-		return cb();
-	}
+	configureScope: (scope) => {
+		
+	},
+	getCurrentHub: () => ({ getClient: () => ({ flush: () => Promise.resolve() }) })
 };
 
 describe("SentryLambdaWrapper", () => {
@@ -366,7 +367,7 @@ describe("SentryLambdaWrapper", () => {
 
 			describe("autoBreadcrumbs", () => {
 				it("should trace Lambda function as breadcrumb", (done) => {
-					const spy = sandbox.spy(SentryMock, "captureBreadcrumb");
+					const spy = sandbox.spy(SentryMock, "addBreadcrumb");
 					const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 					const callback = (err, result) => {
 						expect(spy).to.be.calledOnce;
@@ -435,8 +436,7 @@ describe("SentryLambdaWrapper", () => {
 					.then(result => {
 						expect(spy).to.be.calledWith(
 							"Function Execution Time Warning",
-							{ extra: { TimeRemainingInMsec: sinon.match.number }, level: "warning" },
-							sinon.match.func.or(undefined)
+							{ extra: { TimeRemainingInMsec: sinon.match.number }, level: "warning" }
 						);
 						// The callback happens exactly at half-time
 						expect(spy.firstCall.args[1].extra.TimeRemainingInMsec).to.be.lessThan(remainingTime/2).and.above(remainingTime/2-100);
@@ -450,8 +450,7 @@ describe("SentryLambdaWrapper", () => {
 					.then(result => {
 						expect(spy).to.be.calledWith(
 							"Function Timed Out",
-							{ extra: { TimeRemainingInMsec: sinon.match.number }, level: "error" },
-							sinon.match.func.or(undefined)
+							{ extra: { TimeRemainingInMsec: sinon.match.number }, level: "error" }
 						);
 						// The callback happens 500 msecs before Lambda would time out
 						expect(spy.secondCall.args[1].extra.TimeRemainingInMsec).to.be.lessThan(501).and.above(400);

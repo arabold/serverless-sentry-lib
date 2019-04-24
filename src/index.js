@@ -9,7 +9,6 @@
  */
 let sentryInstalled = false;
 
-
 /**
  * Assorted Helper Functions loosely mimicking [lodash](https://lodash.com/).
  */
@@ -53,7 +52,6 @@ class _ {
 	}
 }
 
-
 /**
  * Install Sentry support
  *
@@ -73,7 +71,7 @@ function installSentry(pluginConfig) {
 		console.warn("Sentry disabled in local environment");
 		delete process.env.SENTRY_DSN; // otherwise sentry will start reporting nonetheless
 
-		Sentry.init({dsn: ''});
+		Sentry.init({ dsn: "" });
 
 		sentryInstalled = true;
 		return;
@@ -83,29 +81,31 @@ function installSentry(pluginConfig) {
 	// allows us to control all aspects of Sentry in a single location -
 	// our plugin configuration.
 	Sentry.init(
-		_.extend({
-			dsn: process.env.SENTRY_DSN,
-			release: process.env.SENTRY_RELEASE,
-			environment: isLocalEnv ? "Local" : process.env.SENTRY_ENVIRONMENT,
-			tags: {
-				lambda: process.env.AWS_LAMBDA_FUNCTION_NAME,
-				version: process.env.AWS_LAMBDA_FUNCTION_VERSION,
-				memory_size: process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE,
-				log_group: process.env.AWS_LAMBDA_LOG_GROUP_NAME,
-				log_stream: process.env.AWS_LAMBDA_LOG_STREAM_NAME,
-				service_name: process.env.SERVERLESS_SERVICE,
-				stage: process.env.SERVERLESS_STAGE,
-				alias: process.env.SERVERLESS_ALIAS,
-				region: process.env.SERVERLESS_REGION || process.env.AWS_REGION
-			}
-		}, pluginConfig)
+		_.extend(
+			{
+				dsn: process.env.SENTRY_DSN,
+				release: process.env.SENTRY_RELEASE,
+				environment: isLocalEnv ? "Local" : process.env.SENTRY_ENVIRONMENT,
+				tags: {
+					lambda: process.env.AWS_LAMBDA_FUNCTION_NAME,
+					version: process.env.AWS_LAMBDA_FUNCTION_VERSION,
+					memory_size: process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE,
+					log_group: process.env.AWS_LAMBDA_LOG_GROUP_NAME,
+					log_stream: process.env.AWS_LAMBDA_LOG_STREAM_NAME,
+					service_name: process.env.SERVERLESS_SERVICE,
+					stage: process.env.SERVERLESS_STAGE,
+					alias: process.env.SERVERLESS_ALIAS,
+					region: process.env.SERVERLESS_REGION || process.env.AWS_REGION
+				}
+			},
+			pluginConfig
+		)
 	);
 
 	sentryInstalled = true;
 
 	console.log("Sentry installed.");
 }
-
 
 // Timers
 let memoryWatch, timeoutWarning, timeoutError;
@@ -122,22 +122,44 @@ function installTimers(pluginConfig, lambdaContext) {
 
 	function timeoutWarningFunc(cb) {
 		const Sentry = pluginConfig.sentryClient;
-		sentryInstalled && Sentry.captureMessage("Function Execution Time Warning", {
-			level: "warning",
-			extra: {
-				TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis()
+		if (sentryInstalled) {
+			Sentry.captureMessage("Function Execution Time Warning", {
+				level: "warning",
+				extra: {
+					TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis()
+				}
+			});
+			const client = Sentry.getCurrentHub().getClient();
+			if (client) {
+				client.flush(1000).then(function() {
+					cb && cb();
+				});
 			}
-		}, cb);
+			else {
+				cb && cb();
+			}
+		}
 	}
 
 	function timeoutErrorFunc(cb) {
 		const Sentry = pluginConfig.sentryClient;
-		sentryInstalled && Sentry.captureMessage("Function Timed Out", {
-			level: "error",
-			extra: {
-				TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis()
+		if (sentryInstalled) {
+			Sentry.captureMessage("Function Timed Out", {
+				level: "error",
+				extra: {
+					TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis()
+				}
+			});
+			const client = Sentry.getCurrentHub().getClient();
+			if (client) {
+				client.flush(1000).then(function() {
+					cb && cb();
+				});
 			}
-		}, cb);
+			else {
+				cb && cb();
+			}
+		}
 	}
 
 	function memoryWatchFunc(cb) {
@@ -145,17 +167,23 @@ function installTimers(pluginConfig, lambdaContext) {
 		const p = (used / memoryLimit);
 		if (p >= 0.75) {
 			const Sentry = pluginConfig.sentryClient;
-			sentryInstalled && Sentry.captureMessage("Low Memory Warning", {
-				level: "warning",
-				extra: {
-					MemoryLimitInMB: memoryLimit,
-					MemoryUsedInMB: Math.floor(used)
+			if (sentryInstalled) {
+				Sentry.captureMessage("Low Memory Warning", {
+					level: "warning",
+					extra: {
+						MemoryLimitInMB: memoryLimit,
+						MemoryUsedInMB: Math.floor(used)
+					}
+				});
+				const client = Sentry.getCurrentHub().getClient();
+				if (client) {
+					client.flush(1000).then(function() {
+						cb && cb();
+					});
 				}
-			}, cb);
-
-			if (memoryWatch) {
-				clearTimeout(memoryWatch);
-				memoryWatch = null;
+				else {
+					cb && cb();
+				}
 			}
 		}
 		else {
@@ -208,11 +236,18 @@ function wrapCallback(pluginConfig, cb) {
 		clearTimers();
 
 		// If an error was thrown we'll report it to Sentry
-		if (err && pluginConfig.captureErrors) {
+		if (err && pluginConfig.captureErrors && sentryInstalled) {
 			const Sentry = pluginConfig.sentryClient;
-			sentryInstalled && Sentry.captureException(err, {}, () => {
+			Sentry.captureException(err);
+			const client = Sentry.getCurrentHub().getClient();
+			if (client) {
+				client.flush(1000).then(function() {
+					cb(err, data);
+				});
+			}
+			else {
 				cb(err, data);
-			});
+			}
 		}
 		else {
 			cb(err, data);
@@ -240,9 +275,7 @@ function parseBoolean(value, defaultValue) {
 	}
 }
 
-
 class SentryLambdaWrapper {
-
 	/**
 	 * Wrap a Lambda Functions Handler
 	 *
@@ -289,7 +322,6 @@ class SentryLambdaWrapper {
 		// Create a new handler function wrapping the original one and hooking
 		// into all callbacks
 		return (event, context, callback) => {
-
 			if (!sentryInstalled) {
 				// Directly invoke the original handler
 				return handler(event, context, callback);
@@ -355,44 +387,47 @@ class SentryLambdaWrapper {
 			});
 
 			const Sentry = pluginConfig.sentryClient;
-			return Sentry.configureScope( scope => {
-				scope.setUser(sentryContext.user);
-				scope.setExtra(sentryContext.extra);
-				scope.setTag(sentryContext.tags)
+			Sentry.configureScope(
+				scope => {
+					scope.setUser(sentryContext.user);
+					scope.setExtra(sentryContext.extra);
+					scope.setTag(sentryContext.tags);
+				}
+			);
+			// Monitor for timeouts and memory usage
+			// The timers will be removed in the wrappedCtx and wrappedCb below
+			installTimers(pluginConfig, context);
 
+			try {
 				// This code runs within a sentry context now. Unhandled exceptions will
 				// automatically be captured and reported.
 
-				// Monitor for timeouts and memory usage
-				// The timers will be removed in the wrappedCtx and wrappedCb below
-				installTimers(pluginConfig, context);
-
-				try {
-					if (pluginConfig.autoBreadcrumbs) {
-						// First breadcrumb is the invocation of the Lambda itself
-						const breadcrumb = {
-							message: process.env.AWS_LAMBDA_FUNCTION_NAME,
-							category: "lambda",
-							level: "info",
-							data: {}
-						};
-						if (event.requestContext) {
-							// Track HTTP request info as part of the breadcrumb
-							_.extend(breadcrumb.data, {
-								http_method: event.requestContext && event.requestContext.httpMethod,
-								host: event.headers && event.headers.Host,
-								path: event.path,
-								user_agent: event.headers && event.headers["User-Agent"]
-							});
-						}
-						Sentry.addBreadcrumb(breadcrumb);
+				if (pluginConfig.autoBreadcrumbs) {
+					// First breadcrumb is the invocation of the Lambda itself
+					const breadcrumb = {
+						message: process.env.AWS_LAMBDA_FUNCTION_NAME,
+						category: "lambda",
+						level: "info",
+						data: {}
+					};
+					if (event.requestContext) {
+						// Track HTTP request info as part of the breadcrumb
+						_.extend(breadcrumb.data, {
+							http_method:
+								event.requestContext && event.requestContext.httpMethod,
+							host: event.headers && event.headers.Host,
+							path: event.path,
+							user_agent: event.headers && event.headers["User-Agent"]
+						});
 					}
+					Sentry.addBreadcrumb(breadcrumb);
+				}
 
-					// And finally invoke the original handler code
-					const promise = handler(event, context, callback);
-					if (promise && _.isFunction(promise.then)) {
-						// don't forget to stop timers
-						return promise
+				// And finally invoke the original handler code
+				const promise = handler(event, context, callback);
+				if (promise && _.isFunction(promise.then)) {
+					// don't forget to stop timers
+					return promise
 						.then((...data) => {
 							clearTimers();
 							return Promise.resolve(...data);
@@ -401,33 +436,29 @@ class SentryLambdaWrapper {
 							clearTimers();
 							if (sentryInstalled && err && pluginConfig.captureErrors) {
 								const Sentry = pluginConfig.sentryClient;
-								return new Promise((resolve, reject) => Sentry.captureException(err, {}, () => {
-									reject(err);
-								}));
+								return new Promise((resolve, reject) => {
+									Sentry.captureException(err);
+									const client = Sentry.getCurrentHub().getClient();
+									if (client) {
+										client.flush(1000).then(function() {
+											reject(err);
+										});
+									}
+								});
 							}
 							else {
 								return Promise.reject(err);
 							}
 						});
-					}
-					// Returning non-Promise values would be meaningless for lambda.
-					// But inherit the behavior of the original handler.
-					return promise;
 				}
-				catch (err) {
-					// Catch and log synchronous exceptions thrown by the handler
-					captureUnhandled(err);
-				}
-			}, err => {
-				// Catch unhandled exceptions and rejections
-				if (!_.isObject(err) || err._sentryHandled) {
-					// This error is being rethrown. Pass it through...
-					throw err;
-				}
-				else {
-					captureUnhandled(err);
-				}
-			});
+				// Returning non-Promise values would be meaningless for lambda.
+				// But inherit the behavior of the original handler.
+				return promise;
+			}
+			catch (err) {
+				// Catch and log synchronous exceptions thrown by the handler
+				captureUnhandled(err);
+			}
 		};
 	}
 }
