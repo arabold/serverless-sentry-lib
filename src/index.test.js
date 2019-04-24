@@ -5,7 +5,7 @@ const chai = require("chai");
 const sinon = require("sinon");
 const path = require("path");
 const { fork } = require("child_process");
-const RavenLambdaWrapper = require("./index");
+const SentryLambdaWrapper = require("./index");
 
 const expect = chai.expect;
 chai.use(require("chai-as-promised"));
@@ -13,7 +13,7 @@ chai.use(require("sinon-chai"));
 
 const sandbox = sinon.createSandbox();
 
-const RavenMock = {
+const SentryMock = {
 	init: () =>  {},
 	captureBreadcrumb: () => {},
 	captureMessage: (msg, context, cb) => {
@@ -27,7 +27,7 @@ const RavenMock = {
 	}
 };
 
-describe("RavenLambdaWrapper", () => {
+describe("SentryLambdaWrapper", () => {
 
 	const mockEvent = {
 		foo: "bar",
@@ -51,7 +51,7 @@ describe("RavenLambdaWrapper", () => {
 
 	// ------------------------------------------------------------------------
 
-	describe("No Raven installed", () => {
+	describe("No Sentry installed", () => {
 
 		describe("Context Succeed/Fail/Done", () => {
 
@@ -60,7 +60,7 @@ describe("RavenLambdaWrapper", () => {
 					context.succeed({ message: "Go Serverless! Your function executed successfully!", event });
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				sandbox.stub(mockContext, "succeed").callsFake((result) => {
 					expect(result).to.have.property("message").that.is.a("string");
 					done();
@@ -73,7 +73,7 @@ describe("RavenLambdaWrapper", () => {
 					context.fail(new Error("Test Error"));
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				sandbox.stub(mockContext, "fail").callsFake((err) => {
 					expect(err).to.be.an("error").with.property("message", "Test Error");
 					done();
@@ -86,7 +86,7 @@ describe("RavenLambdaWrapper", () => {
 					context.done(null, { message: "Go Serverless! Your function executed successfully!", event });
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				sandbox.stub(mockContext, "done").callsFake((err, result) => {
 					expect(err).to.be.null,
 					expect(result).to.have.property("message").that.is.a("string");
@@ -100,7 +100,7 @@ describe("RavenLambdaWrapper", () => {
 					context.done(new Error("Test Error"));
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				sandbox.stub(mockContext, "done").callsFake((err, result) => {
 					expect(err).to.be.an("error").with.property("message", "Test Error");
 					done();
@@ -116,7 +116,7 @@ describe("RavenLambdaWrapper", () => {
 					callback(null, { message: "Go Serverless! Your function executed successfully!", event });
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				const callback = (err, result) => {
 					expect(err).to.be.null,
 					expect(result).to.have.property("message").that.is.a("string");
@@ -130,7 +130,7 @@ describe("RavenLambdaWrapper", () => {
 					callback(new Error("Test Error"));
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				const callback = (err) => {
 					expect(err).to.be.an("error").with.property("message", "Test Error");
 					done();
@@ -146,7 +146,7 @@ describe("RavenLambdaWrapper", () => {
 					return Promise.resolve({ message: "Go Serverless! Your function executed successfully!", event });
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.fulfilled
 				.then(result => {
 					expect(result).to.have.property("message").that.is.a("string");
@@ -158,7 +158,7 @@ describe("RavenLambdaWrapper", () => {
 					return Promise.reject(new Error("Test Error"));
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error");
 			});
 		});
@@ -167,7 +167,7 @@ describe("RavenLambdaWrapper", () => {
 
 	// ------------------------------------------------------------------------
 
-	describe("Raven installed", () => {
+	describe("Sentry installed", () => {
 
 		before(() => {
 			process.env.SENTRY_DSN = "https://sentry.example.com";
@@ -182,7 +182,7 @@ describe("RavenLambdaWrapper", () => {
 					context.succeed({ message: "Go Serverless! Your function executed successfully!", event });
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				sandbox.stub(mockContext, "succeed").callsFake((result) => {
 					expect(result).to.have.property("message").that.is.a("string");
 					done();
@@ -195,7 +195,7 @@ describe("RavenLambdaWrapper", () => {
 					context.fail(new Error("Test Error"));
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				sandbox.stub(mockContext, "fail").callsFake((err) => {
 					expect(err).to.be.an("error").with.property("message", "Test Error");
 					done();
@@ -208,7 +208,7 @@ describe("RavenLambdaWrapper", () => {
 					context.done(null, { message: "Go Serverless! Your function executed successfully!", event });
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				sandbox.stub(mockContext, "done").callsFake((err, result) => {
 					expect(err).to.be.null,
 					expect(result).to.have.property("message").that.is.a("string");
@@ -222,7 +222,7 @@ describe("RavenLambdaWrapper", () => {
 					context.done(new Error("Test Error"));
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				sandbox.stub(mockContext, "done").callsFake((err, result) => {
 					expect(err).to.be.an("error").with.property("message", "Test Error");
 					done();
@@ -235,8 +235,8 @@ describe("RavenLambdaWrapper", () => {
 					context.fail(new Error("Test Error"));
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
-				const spy = sandbox.spy(RavenMock, "captureException");
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+				const spy = sandbox.spy(SentryMock, "captureException");
 				sandbox.stub(mockContext, "fail").callsFake((err) => {
 					expect(spy).to.be.calledOnce;
 					expect(spy).to.be.calledWith(sinon.match.instanceOf(Error).and(sinon.match.has("message", "Test Error")));
@@ -250,8 +250,8 @@ describe("RavenLambdaWrapper", () => {
 					context.done(new Error("Test Error"));
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
-				const spy = sandbox.spy(RavenMock, "captureException");
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+				const spy = sandbox.spy(SentryMock, "captureException");
 				sandbox.stub(mockContext, "done").callsFake((err) => {
 					expect(spy).to.be.calledOnce;
 					expect(spy).to.be.calledWith(sinon.match.instanceOf(Error).and(sinon.match.has("message", "Test Error")));
@@ -268,7 +268,7 @@ describe("RavenLambdaWrapper", () => {
 					callback(null, { message: "Go Serverless! Your function executed successfully!", event });
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				const callback = (err, result) => {
 					expect(err).to.be.null,
 					expect(result).to.have.property("message").that.is.a("string");
@@ -282,7 +282,7 @@ describe("RavenLambdaWrapper", () => {
 					callback(new Error("Test Error"));
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				const callback = (err) => {
 					expect(err).to.be.an("error").with.property("message", "Test Error");
 					done();
@@ -295,8 +295,8 @@ describe("RavenLambdaWrapper", () => {
 					callback(new Error("Test Error"));
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
-				const spy = sandbox.spy(RavenMock, "captureException");
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+				const spy = sandbox.spy(SentryMock, "captureException");
 				const callback = (err) => {
 					expect(spy).to.be.calledOnce;
 					expect(spy).to.be.calledWith(sinon.match.instanceOf(Error).and(sinon.match.has("message", "Test Error")));
@@ -313,7 +313,7 @@ describe("RavenLambdaWrapper", () => {
 					return Promise.resolve({ message: "Go Serverless! Your function executed successfully!", event });
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.fulfilled
 				.then(result => {
 					expect(result).to.have.property("message").that.is.a("string");
@@ -325,7 +325,7 @@ describe("RavenLambdaWrapper", () => {
 					return Promise.reject(new Error("Test Error"));
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error");
 			});
 
@@ -334,8 +334,8 @@ describe("RavenLambdaWrapper", () => {
 					return Promise.reject(new Error("Test Error"));
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
-				const spy = sandbox.spy(RavenMock, "captureException");
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+				const spy = sandbox.spy(SentryMock, "captureException");
 				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error")
 				.then(() => {
 					expect(spy).to.be.calledOnce;
@@ -353,7 +353,7 @@ describe("RavenLambdaWrapper", () => {
 					return Promise.resolve({ message: "Go Serverless! Your function executed successfully!", event });
 				};
 
-				const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 				return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled;
 			});
 		});
@@ -366,8 +366,8 @@ describe("RavenLambdaWrapper", () => {
 
 			describe("autoBreadcrumbs", () => {
 				it("should trace Lambda function as breadcrumb", (done) => {
-					const spy = sandbox.spy(RavenMock, "captureBreadcrumb");
-					const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+					const spy = sandbox.spy(SentryMock, "captureBreadcrumb");
+					const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 					const callback = (err, result) => {
 						expect(spy).to.be.calledOnce;
 						expect(spy).to.be.calledWith({ category: "lambda", message: "Test-Lambda-Function", data: {}, level: "info" });
@@ -378,7 +378,7 @@ describe("RavenLambdaWrapper", () => {
 			});
 
 			describe("filterLocal", () => {
-				it("should not install Raven when running locally if enabled", (done) => {
+				it("should not install Sentry when running locally if enabled", (done) => {
 					// TODO:
 					done();
 				});
@@ -429,8 +429,8 @@ describe("RavenLambdaWrapper", () => {
 				});
 
 				it("should warn if more than half of the originally available time has passed", () => {
-					const spy = sandbox.spy(RavenMock, "captureMessage");
-					const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+					const spy = sandbox.spy(SentryMock, "captureMessage");
+					const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 					return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled
 					.then(result => {
 						expect(spy).to.be.calledWith(
@@ -444,8 +444,8 @@ describe("RavenLambdaWrapper", () => {
 				});
 
 				it("should error if Lambda timeout is hit", function() {
-					const spy = sandbox.spy(RavenMock, "captureMessage");
-					const wrappedHandler = RavenLambdaWrapper.handler(RavenMock, handler);
+					const spy = sandbox.spy(SentryMock, "captureMessage");
+					const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 					return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled
 					.then(result => {
 						expect(spy).to.be.calledWith(

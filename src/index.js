@@ -1,27 +1,14 @@
 /**
- * Raven SDK helper for AWS Lambda.
+ * Sentry SDK helper for AWS Lambda.
  */
 "use strict";
 
 /**
- * Whether Raven was installed or not
+ * Whether Sentry was installed or not
  * @type {boolean}
  */
-let ravenInstalled = false;
+let sentryInstalled = false;
 
-/**
- * Global variable for backward compatibility with old versions of this plugin.
- *
- * This should not be used. Import Raven yourself and use the local
- * instead instead.
- *
- * @type {Raven}
- *
- * @example
- * const Raven = require('@sentry/node');;
- * Raven.captureException(new Error("My Error"));
- */
-global.sls_raven = null;
 
 /**
  * Assorted Helper Functions loosely mimicking [lodash](https://lodash.com/).
@@ -68,15 +55,15 @@ class _ {
 
 
 /**
- * Install Raven/Sentry support
+ * Install Sentry support
  *
  * @param {Object} pluginConfig - Plugin configuration. This is NOT optional!
  * @returns {undefined}
  */
-function installRaven(pluginConfig) {
-	const Raven = pluginConfig.ravenClient;
-	if (!Raven) {
-		console.error("Raven client not found.");
+function installSentry(pluginConfig) {
+	const Sentry = pluginConfig.sentryClient;
+	if (!Sentry) {
+		console.error("Sentry client not found.");
 	}
 
 	// Check for local environment
@@ -84,18 +71,18 @@ function installRaven(pluginConfig) {
 	if (pluginConfig.filterLocal && isLocalEnv) {
 		// Running locally.
 		console.warn("Sentry disabled in local environment");
-		delete process.env.SENTRY_DSN; // otherwise raven will start reporting nonetheless
+		delete process.env.SENTRY_DSN; // otherwise sentry will start reporting nonetheless
 
-		Raven.init();
+		Sentry.init();
 
-		ravenInstalled = true;
+		sentryInstalled = true;
 		return;
 	}
 
-	// We're merging the plugin config options with the Raven options. This
-	// allows us to control all aspects of Raven in a single location -
+	// We're merging the plugin config options with the Sentry options. This
+	// allows us to control all aspects of Sentry in a single location -
 	// our plugin configuration.
-	Raven.init(
+	Sentry.init(
 		_.extend({
 			dns: process.env.SENTRY_DSN,
 			release: process.env.SENTRY_RELEASE,
@@ -114,12 +101,9 @@ function installRaven(pluginConfig) {
 		}, pluginConfig)
 	);
 
-	// Register this instance globally for backward compatibility
-	// with serverless-sentry-plugin 0.2.x/0.3.x
-	global.sls_raven = Raven;
-	ravenInstalled = true;
+	sentryInstalled = true;
 
-	console.log("Raven installed.");
+	console.log("Sentry installed.");
 }
 
 
@@ -137,8 +121,8 @@ function installTimers(pluginConfig, lambdaContext) {
 	const memoryLimit = lambdaContext.memoryLimitInMB;
 
 	function timeoutWarningFunc(cb) {
-		const Raven = pluginConfig.ravenClient;
-		ravenInstalled && Raven.captureMessage("Function Execution Time Warning", {
+		const Sentry = pluginConfig.sentryClient;
+		sentryInstalled && Sentry.captureMessage("Function Execution Time Warning", {
 			level: "warning",
 			extra: {
 				TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis()
@@ -147,8 +131,8 @@ function installTimers(pluginConfig, lambdaContext) {
 	}
 
 	function timeoutErrorFunc(cb) {
-		const Raven = pluginConfig.ravenClient;
-		ravenInstalled && Raven.captureMessage("Function Timed Out", {
+		const Sentry = pluginConfig.sentryClient;
+		sentryInstalled && Sentry.captureMessage("Function Timed Out", {
 			level: "error",
 			extra: {
 				TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis()
@@ -160,8 +144,8 @@ function installTimers(pluginConfig, lambdaContext) {
 		const used = process.memoryUsage().rss / 1048576;
 		const p = (used / memoryLimit);
 		if (p >= 0.75) {
-			const Raven = pluginConfig.ravenClient;
-			ravenInstalled && Raven.captureMessage("Low Memory Warning", {
+			const Sentry = pluginConfig.sentryClient;
+			sentryInstalled && Sentry.captureMessage("Low Memory Warning", {
 				level: "warning",
 				extra: {
 					MemoryLimitInMB: memoryLimit,
@@ -225,8 +209,8 @@ function wrapCallback(pluginConfig, cb) {
 
 		// If an error was thrown we'll report it to Sentry
 		if (err && pluginConfig.captureErrors) {
-			const Raven = pluginConfig.ravenClient;
-			ravenInstalled && Raven.captureException(err, {}, () => {
+			const Sentry = pluginConfig.sentryClient;
+			sentryInstalled && Sentry.captureException(err, {}, () => {
 				cb(err, data);
 			});
 		}
@@ -257,15 +241,15 @@ function parseBoolean(value, defaultValue) {
 }
 
 
-class RavenLambdaWrapper {
+class SentryLambdaWrapper {
 
 	/**
 	 * Wrap a Lambda Functions Handler
 	 *
 	 * @see http://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-handler.html
-	 * @param {Object|Raven} pluginConfig - Raven client or an options object
-	 * @param {boolean} [pluginConfig.ravenClient] - Raven client instance
-	 * @param {boolean} [pluginConfig.autoBreadcrumbs] - Automatically create breadcrumbs (see Sentry Raven docs, default to `true`)
+	 * @param {Object|Sentry} pluginConfig - Sentry client or an options object
+	 * @param {boolean} [pluginConfig.sentryClient] - Sentry client instance
+	 * @param {boolean} [pluginConfig.autoBreadcrumbs] - Automatically create breadcrumbs (see Sentry SDK docs, default to `true`)
 	 * @param {boolean} [pluginConfig.filterLocal] - don't report errors from local environments (defaults to `true`)
 	 * @param {boolean} [pluginConfig.captureErrors] - capture Lambda errors (defaults to `true`)
 	 * @param {boolean} [pluginConfig.captureUnhandledRejections] - capture unhandled exceptions (defaults to `true`)
@@ -278,8 +262,8 @@ class RavenLambdaWrapper {
 		if (_.isObject(pluginConfig) &&
 			_.isFunction(pluginConfig.captureException) &&
 			_.isFunction(pluginConfig.captureMessage)) {
-			// Passed in the Raven client object directly
-			pluginConfig = { ravenClient: pluginConfig };
+			// Passed in the Sentry client object directly
+			pluginConfig = { sentryClient: pluginConfig };
 		}
 
 		const pluginConfigDefaults = {
@@ -289,24 +273,24 @@ class RavenLambdaWrapper {
 			captureUnhandledRejections: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"), true),
 			captureMemoryWarnings:      parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"),    true),
 			captureTimeoutWarnings:     parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),  true),
-			ravenClient: null
+			sentryClient: null
 		};
 
 		pluginConfig = _.extend(pluginConfigDefaults, pluginConfig);
-		if (!pluginConfig.ravenClient) {
-			pluginConfig.ravenClient = require("raven");
+		if (!pluginConfig.sentryClient) {
+			pluginConfig.sentryClient = require("@sentry/node");
 		}
 
-		// Install raven (if that didn't happen already during a previous Lambda invocation)
-		if (process.env.SENTRY_DSN && !ravenInstalled) {
-			installRaven(pluginConfig);
+		// Install sentry (if that didn't happen already during a previous Lambda invocation)
+		if (process.env.SENTRY_DSN && !sentryInstalled) {
+			installSentry(pluginConfig);
 		}
 
 		// Create a new handler function wrapping the original one and hooking
 		// into all callbacks
 		return (event, context, callback) => {
 
-			if (!ravenInstalled) {
+			if (!sentryInstalled) {
 				// Directly invoke the original handler
 				return handler(event, context, callback);
 			}
@@ -326,8 +310,8 @@ class RavenLambdaWrapper {
 			callback = originalCallbacks.callback ?
 				wrapCallback(pluginConfig, originalCallbacks.callback) : originalCallbacks.callback;
 
-			// Additional context to be stored with Raven events and messages
-			const ravenContext = {
+			// Additional context to be stored with Sentry events and messages
+			const sentryContext = {
 				extra: {
 					Event: event,
 					Context: context
@@ -344,7 +328,7 @@ class RavenLambdaWrapper {
 			if (!_.isNil(identity)) {
 				// Track the caller's Cognito identity
 				// id, username and ip_address are key fields in Sentry
-				ravenContext.user = {
+				sentryContext.user = {
 					id: identity.cognitoIdentityId || undefined,
 					username: identity.user || undefined,
 					ip_address: identity.sourceIp || undefined,
@@ -356,7 +340,7 @@ class RavenLambdaWrapper {
 
 			// Add additional tags for AWS_PROXY endpoints
 			if (!_.isNil(event.requestContext)) {
-				_.extend(ravenContext.tags, {
+				_.extend(sentryContext.tags, {
 					api_id: event.requestContext.apiId,
 					api_stage: event.requestContext.stage,
 					http_method: event.requestContext.httpMethod
@@ -366,13 +350,13 @@ class RavenLambdaWrapper {
 			// Callback triggered after logging unhandled exceptions or rejections.
 			// We rethrow the previous error to force stop the current Lambda execution.
 			const captureUnhandled = wrapCallback(pluginConfig, err => {
-				err._ravenHandled = true; // prevent recursion
+				err._sentryHandled = true; // prevent recursion
 				throw err;
 			});
 
-			const Raven = pluginConfig.ravenClient;
-			return Raven.context(ravenContext, () => {
-				// This code runs within a raven context now. Unhandled exceptions will
+			const Sentry = pluginConfig.sentryClient;
+			return Sentry.context(sentryContext, () => {
+				// This code runs within a sentry context now. Unhandled exceptions will
 				// automatically be captured and reported.
 
 				// Monitor for timeouts and memory usage
@@ -397,7 +381,7 @@ class RavenLambdaWrapper {
 								user_agent: event.headers && event.headers["User-Agent"]
 							});
 						}
-						Raven.captureBreadcrumb(breadcrumb);
+						Sentry.captureBreadcrumb(breadcrumb);
 					}
 
 					// And finally invoke the original handler code
@@ -411,9 +395,9 @@ class RavenLambdaWrapper {
 						})
 						.catch(err => {
 							clearTimers();
-							if (ravenInstalled && err && pluginConfig.captureErrors) {
-								const Raven = pluginConfig.ravenClient;
-								return new Promise((resolve, reject) => Raven.captureException(err, {}, () => {
+							if (sentryInstalled && err && pluginConfig.captureErrors) {
+								const Sentry = pluginConfig.sentryClient;
+								return new Promise((resolve, reject) => Sentry.captureException(err, {}, () => {
 									reject(err);
 								}));
 							}
@@ -432,7 +416,7 @@ class RavenLambdaWrapper {
 				}
 			}, err => {
 				// Catch unhandled exceptions and rejections
-				if (!_.isObject(err) || err._ravenHandled) {
+				if (!_.isObject(err) || err._sentryHandled) {
 					// This error is being rethrown. Pass it through...
 					throw err;
 				}
@@ -444,4 +428,4 @@ class RavenLambdaWrapper {
 	}
 }
 
-module.exports = RavenLambdaWrapper;
+module.exports = SentryLambdaWrapper;
