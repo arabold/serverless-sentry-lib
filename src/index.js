@@ -385,7 +385,7 @@ class SentryLambdaWrapper {
 								user_agent: event.headers && event.headers["User-Agent"]
 							});
 						}
-						Sentry.captureBreadcrumb(breadcrumb);
+						Sentry.addBreadcrumb(breadcrumb);
 					}
 
 					// And finally invoke the original handler code
