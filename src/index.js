@@ -73,7 +73,7 @@ function installSentry(pluginConfig) {
 		console.warn("Sentry disabled in local environment");
 		delete process.env.SENTRY_DSN; // otherwise sentry will start reporting nonetheless
 
-		Sentry.init();
+		Sentry.init({dsn: ''});
 
 		sentryInstalled = true;
 		return;
@@ -84,7 +84,7 @@ function installSentry(pluginConfig) {
 	// our plugin configuration.
 	Sentry.init(
 		_.extend({
-			dns: process.env.SENTRY_DSN,
+			dsn: process.env.SENTRY_DSN,
 			release: process.env.SENTRY_RELEASE,
 			environment: isLocalEnv ? "Local" : process.env.SENTRY_ENVIRONMENT,
 			tags: {
