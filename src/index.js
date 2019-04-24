@@ -355,7 +355,11 @@ class SentryLambdaWrapper {
 			});
 
 			const Sentry = pluginConfig.sentryClient;
-			return Sentry.context(sentryContext, () => {
+			return Sentry.configureScope( scope => {
+				scope.setUser(sentryContext.user);
+				scope.setExtra(sentryContext.extra);
+				scope.setTag(sentryContext.tags)
+
 				// This code runs within a sentry context now. Unhandled exceptions will
 				// automatically be captured and reported.
 
