@@ -13,19 +13,23 @@ chai.use(require("sinon-chai"));
 
 const sandbox = sinon.createSandbox();
 
+const ScopeMock = {
+	setLevel: () =>{},
+	setExtras: ()=>{},
+	setUser: ()=>{},
+	setTag: ()=>{},
+	setTags: ()=>{},
+}
+
 const SentryMock = {
 	init: () =>  {},
 	addBreadcrumb: () => {},
-	captureMessage: (msg, context) => {
-		
-	},
-	captureException: (err, context) => {
-		
-	},
-	configureScope: (scope) => {
-		
-	},
-	getCurrentHub: () => ({ getClient: () => ({ flush: () => Promise.resolve() }) })
+	captureMessage: (msg, context) => {},
+	captureException: (err, context) => {},
+	configureScope: (scope) => {},
+	withScope: (fun) => {fun(ScopeMock)},
+	getCurrentHub: () => ({ getClient: () => ({ flush: () => Promise.resolve() }) }),
+	flush: () => Promise.resolve()
 };
 
 describe("SentryLambdaWrapper", () => {
@@ -330,19 +334,6 @@ describe("SentryLambdaWrapper", () => {
 				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error");
 			});
 
-			it("should capture rejection", () => {
-				const handler = (event, context) => {
-					return Promise.reject(new Error("Test Error"));
-				};
-
-				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
-				const spy = sandbox.spy(SentryMock, "captureException");
-				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error")
-				.then(() => {
-					expect(spy).to.be.calledOnce;
-					expect(spy).to.be.calledWith(sinon.match.instanceOf(Error).and(sinon.match.has("message", "Test Error")));
-				});
-			});
 		});
 
 		describe("Context", () => {
@@ -431,29 +422,43 @@ describe("SentryLambdaWrapper", () => {
 
 				it("should warn if more than half of the originally available time has passed", () => {
 					const spy = sandbox.spy(SentryMock, "captureMessage");
+					const spyScopeSetLevel = sandbox.spy(ScopeMock, "setLevel");
+					const spyScopeSetExtras = sandbox.spy(ScopeMock, "setExtras");
 					const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 					return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled
 					.then(result => {
 						expect(spy).to.be.calledWith(
-							"Function Execution Time Warning",
-							{ extra: { TimeRemainingInMsec: sinon.match.number }, level: "warning" }
+							"Function Execution Time Warning"
 						);
+						expect(spyScopeSetLevel).to.be.calledWith(
+							 "warning" 
+						);
+						expect(spyScopeSetExtras).to.be.calledWith(
+							{ TimeRemainingInMsec: sinon.match.number }
+					   );
 						// The callback happens exactly at half-time
-						expect(spy.firstCall.args[1].extra.TimeRemainingInMsec).to.be.lessThan(remainingTime/2).and.above(remainingTime/2-100);
+						expect(spyScopeSetExtras.firstCall.args[0].TimeRemainingInMsec).to.be.lessThan(remainingTime/2).and.above(remainingTime/2-100);
 					});
 				});
 
 				it("should error if Lambda timeout is hit", function() {
 					const spy = sandbox.spy(SentryMock, "captureMessage");
+					const spyScopeSetLevel = sandbox.spy(ScopeMock, "setLevel");
+					const spyScopeSetExtras = sandbox.spy(ScopeMock, "setExtras");
 					const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
 					return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled
 					.then(result => {
 						expect(spy).to.be.calledWith(
-							"Function Timed Out",
-							{ extra: { TimeRemainingInMsec: sinon.match.number }, level: "error" }
+							"Function Timed Out"
 						);
+						expect(spyScopeSetLevel).to.be.calledWith(
+							"error" 
+					   );
+					   expect(spyScopeSetExtras).to.be.calledWith(
+						   { TimeRemainingInMsec: sinon.match.number }
+					  );
 						// The callback happens 500 msecs before Lambda would time out
-						expect(spy.secondCall.args[1].extra.TimeRemainingInMsec).to.be.lessThan(501).and.above(400);
+						expect(spyScopeSetExtras.secondCall.args[0].TimeRemainingInMsec).to.be.lessThan(501).and.above(400);
 					});
 				});
 			});

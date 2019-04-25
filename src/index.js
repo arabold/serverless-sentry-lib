@@ -28,23 +28,23 @@ class _ {
 	}
 
 	static isObject(obj) {
-		return (typeof obj === "object");
+		return typeof obj === "object";
 	}
 
 	static isError(obj) {
-		return (obj instanceof Error);
+		return obj instanceof Error;
 	}
 
 	static isUndefined(obj) {
-		return (typeof obj === "undefined");
+		return typeof obj === "undefined";
 	}
 
 	static isFunction(obj) {
-		return (typeof obj === "function");
+		return typeof obj === "function";
 	}
 
 	static isNil(obj) {
-		return (obj === null || _.isUndefined(obj));
+		return obj === null || _.isUndefined(obj);
 	}
 
 	static get(obj, prop, defaultValue) {
@@ -65,7 +65,10 @@ function installSentry(pluginConfig) {
 	}
 
 	// Check for local environment
-	const isLocalEnv = process.env.IS_OFFLINE || process.env.IS_LOCAL || !process.env.LAMBDA_TASK_ROOT;
+	const isLocalEnv =
+		process.env.IS_OFFLINE ||
+		process.env.IS_LOCAL ||
+		!process.env.LAMBDA_TASK_ROOT;
 	if (pluginConfig.filterLocal && isLocalEnv) {
 		// Running locally.
 		console.warn("Sentry disabled in local environment");
@@ -77,6 +80,37 @@ function installSentry(pluginConfig) {
 		return;
 	}
 
+	// add integration to fix Sourcemap path
+	if (pluginConfig.sourceMaps) {
+		const RewriteFramesExists =
+			pluginConfig.init &&
+			typeof pluginConfig.init.integrations === "array" &&
+			pluginConfig.init.integrations.find(
+				integration => integration.name === "RewriteFrames"
+			);
+		if (!RewriteFramesExists) {
+			if (typeof pluginConfig.init.integrations !== "array")
+				pluginConfig.init.integrations = [];
+
+			const { RewriteFrames } = require("@sentry/integrations");
+			const path = require("path");
+			pluginConfig.init.integrations.push(
+				new RewriteFrames({
+					iteratee: frame => {
+						//console.log(frame.filename);
+						if (
+							frame.filename.startsWith("/") &&
+							!frame.filename.includes("/node_modules/")
+						) {
+							frame.filename = "app:///" + path.basename(frame.filename);
+						}
+						return frame;
+					}
+				})
+			);
+		}
+	}
+
 	// We're merging the plugin config options with the Sentry options. This
 	// allows us to control all aspects of Sentry in a single location -
 	// our plugin configuration.
@@ -85,22 +119,28 @@ function installSentry(pluginConfig) {
 			{
 				dsn: process.env.SENTRY_DSN,
 				release: process.env.SENTRY_RELEASE,
-				environment: isLocalEnv ? "Local" : process.env.SENTRY_ENVIRONMENT,
-				tags: {
-					lambda: process.env.AWS_LAMBDA_FUNCTION_NAME,
-					version: process.env.AWS_LAMBDA_FUNCTION_VERSION,
-					memory_size: process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE,
-					log_group: process.env.AWS_LAMBDA_LOG_GROUP_NAME,
-					log_stream: process.env.AWS_LAMBDA_LOG_STREAM_NAME,
-					service_name: process.env.SERVERLESS_SERVICE,
-					stage: process.env.SERVERLESS_STAGE,
-					alias: process.env.SERVERLESS_ALIAS,
-					region: process.env.SERVERLESS_REGION || process.env.AWS_REGION
-				}
+				environment: isLocalEnv ? "Local" : process.env.SENTRY_ENVIRONMENT
 			},
-			pluginConfig
+			pluginConfig.init
 		)
 	);
+	let tags = {
+		lambda: process.env.AWS_LAMBDA_FUNCTION_NAME,
+		version: process.env.AWS_LAMBDA_FUNCTION_VERSION,
+		memory_size: process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE,
+		log_group: process.env.AWS_LAMBDA_LOG_GROUP_NAME,
+		log_stream: process.env.AWS_LAMBDA_LOG_STREAM_NAME,
+		region: process.env.SERVERLESS_REGION || process.env.AWS_REGION
+	};
+
+	if (process.env.SERVERLESS_SERVICE)
+		tags.service_name = process.env.SERVERLESS_SERVICE;
+	if (process.env.SERVERLESS_STAGE) tags.stage = process.env.SERVERLESS_STAGE;
+	if (process.env.SERVERLESS_ALIAS) tags.alias = process.env.SERVERLESS_ALIAS;
+
+	Sentry.configureScope(scope => {
+		scope.setTags(_.extend(tags, pluginConfig.scope.tags));
+	});
 
 	sentryInstalled = true;
 
@@ -123,70 +163,54 @@ function installTimers(pluginConfig, lambdaContext) {
 	function timeoutWarningFunc(cb) {
 		const Sentry = pluginConfig.sentryClient;
 		if (sentryInstalled) {
-			Sentry.captureMessage("Function Execution Time Warning", {
-				level: "warning",
-				extra: {
+			Sentry.withScope(scope => {
+				scope.setLevel("warning");
+				scope.setExtras({
 					TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis()
-				}
-			});
-			const client = Sentry.getCurrentHub().getClient();
-			if (client) {
-				client.flush(1000).then(function() {
-					cb && cb();
 				});
-			}
-			else {
+				Sentry.captureMessage("Function Execution Time Warning");
+			});
+			Sentry.flush(5000).then(function() {
 				cb && cb();
-			}
+			});
 		}
 	}
 
 	function timeoutErrorFunc(cb) {
 		const Sentry = pluginConfig.sentryClient;
 		if (sentryInstalled) {
-			Sentry.captureMessage("Function Timed Out", {
-				level: "error",
-				extra: {
+			Sentry.withScope(scope => {
+				scope.setLevel("error");
+				scope.setExtras({
 					TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis()
-				}
-			});
-			const client = Sentry.getCurrentHub().getClient();
-			if (client) {
-				client.flush(1000).then(function() {
-					cb && cb();
 				});
-			}
-			else {
+				Sentry.captureMessage("Function Timed Out");
+			});
+			Sentry.flush(5000).then(function() {
 				cb && cb();
-			}
+			});
 		}
 	}
 
 	function memoryWatchFunc(cb) {
 		const used = process.memoryUsage().rss / 1048576;
-		const p = (used / memoryLimit);
+		const p = used / memoryLimit;
 		if (p >= 0.75) {
 			const Sentry = pluginConfig.sentryClient;
 			if (sentryInstalled) {
-				Sentry.captureMessage("Low Memory Warning", {
-					level: "warning",
-					extra: {
+				Sentry.withScope(scope => {
+					scope.setLevel("warning");
+					scope.setExtras({
 						MemoryLimitInMB: memoryLimit,
 						MemoryUsedInMB: Math.floor(used)
-					}
-				});
-				const client = Sentry.getCurrentHub().getClient();
-				if (client) {
-					client.flush(1000).then(function() {
-						cb && cb();
 					});
-				}
-				else {
+					Sentry.captureMessage("Low Memory Warning");
+				});
+				Sentry.flush(5000).then(function() {
 					cb && cb();
-				}
+				});
 			}
-		}
-		else {
+		} else {
 			memoryWatch = setTimeout(memoryWatchFunc, 500);
 		}
 	}
@@ -195,7 +219,10 @@ function installTimers(pluginConfig, lambdaContext) {
 		// We schedule the warning at half the maximum execution time and
 		// the error a few milliseconds before the actual timeout happens.
 		timeoutWarning = setTimeout(timeoutWarningFunc, timeRemaining / 2);
-		timeoutError = setTimeout(timeoutErrorFunc, Math.max(timeRemaining - 500, 0));
+		timeoutError = setTimeout(
+			timeoutErrorFunc,
+			Math.max(timeRemaining - 500, 0)
+		);
 	}
 
 	if (pluginConfig.captureMemoryWarnings) {
@@ -236,20 +263,22 @@ function wrapCallback(pluginConfig, cb) {
 		clearTimers();
 
 		// If an error was thrown we'll report it to Sentry
-		if (err && pluginConfig.captureErrors && sentryInstalled) {
+		if (
+			err &&
+			err !== "__emptyFailParamBackCompat" &&
+			pluginConfig.captureErrors &&
+			sentryInstalled
+		) {
 			const Sentry = pluginConfig.sentryClient;
 			Sentry.captureException(err);
-			const client = Sentry.getCurrentHub().getClient();
-			if (client) {
-				client.flush(1000).then(function() {
-					cb(err, data);
-				});
-			}
-			else {
-				cb(err, data);
-			}
+			Sentry.flush(5000).then(function() {
+				cb(err);
+			});
+			return;
 		}
-		else {
+		if (err) {
+			cb(err);
+		} else {
 			cb(err, data);
 		}
 	};
@@ -263,14 +292,14 @@ function wrapCallback(pluginConfig, cb) {
  * @returns {boolean}
  */
 function parseBoolean(value, defaultValue) {
-	const v = String(value).trim().toLowerCase();
-	if ([ "true", "t", "1", "yes", "y" ].includes(v)) {
+	const v = String(value)
+		.trim()
+		.toLowerCase();
+	if (["true", "t", "1", "yes", "y"].includes(v)) {
 		return true;
-	}
-	else if ([ "false", "f", "0", "no", "n" ].includes(v)) {
+	} else if (["false", "f", "0", "no", "n"].includes(v)) {
 		return false;
-	}
-	else {
+	} else {
 		return defaultValue;
 	}
 }
@@ -292,22 +321,45 @@ class SentryLambdaWrapper {
 	 * @return {Function} - Wrapped Lambda function handler with Sentry instrumentation
 	 */
 	static handler(pluginConfig, handler) {
-		if (_.isObject(pluginConfig) &&
+		if (
+			_.isObject(pluginConfig) &&
 			_.isFunction(pluginConfig.captureException) &&
-			_.isFunction(pluginConfig.captureMessage)) {
+			_.isFunction(pluginConfig.captureMessage)
+		) {
 			// Passed in the Sentry client object directly
 			pluginConfig = { sentryClient: pluginConfig };
 		}
 
 		const pluginConfigDefaults = {
-			autoBreadcrumbs:            parseBoolean(_.get(process.env, "SENTRY_AUTO_BREADCRUMBS"),  true),
-			filterLocal:                parseBoolean(_.get(process.env, "SENTRY_FILTER_LOCAL"),      true),
-			captureErrors:              parseBoolean(_.get(process.env, "SENTRY_CAPTURE_ERRORS"),    true),
-			captureUnhandledRejections: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"), true),
-			captureMemoryWarnings:      parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"),    true),
-			captureTimeoutWarnings:     parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),  true),
-			sourceMaps:     			parseBoolean(_.get(process.env, "SENTRY_SOURCEMAPS"),  false),
-			ravenClient: null
+			init: {},
+			scope: { tags: {}, extra: {}, user: {} },
+			captureErrors: parseBoolean(
+				_.get(process.env, "SENTRY_CAPTURE_ERRORS"),
+				true
+			),
+			captureUnhandledRejections: parseBoolean(
+				_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"),
+				true
+			),
+			captureMemoryWarnings: parseBoolean(
+				_.get(process.env, "SENTRY_CAPTURE_MEMORY"),
+				true
+			),
+			captureTimeoutWarnings: parseBoolean(
+				_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),
+				true
+			),
+
+			autoBreadcrumbs: parseBoolean(
+				_.get(process.env, "SENTRY_AUTO_BREADCRUMBS"),
+				true
+			),
+			filterLocal: parseBoolean(
+				_.get(process.env, "SENTRY_FILTER_LOCAL"),
+				true
+			),
+			sourceMaps: parseBoolean(_.get(process.env, "SENTRY_SOURCEMAPS"), false),
+			sentryClient: null
 		};
 
 		pluginConfig = _.extend(pluginConfigDefaults, pluginConfig);
@@ -332,19 +384,25 @@ class SentryLambdaWrapper {
 				done: context.done.bind(context),
 				succeed: context.succeed.bind(context),
 				fail: context.fail.bind(context),
-				callback: callback,
+				callback: callback
 			};
-			context.done = _.isFunction(originalCallbacks.done) ?
-				wrapCallback(pluginConfig, originalCallbacks.done) : originalCallbacks.done;
-			context.fail = _.isFunction(originalCallbacks.fail) ?
-				wrapCallback(pluginConfig, originalCallbacks.fail) : originalCallbacks.fail;
-			context.succeed = _.isFunction(originalCallbacks.succeed) ?
-				wrapCallback(pluginConfig, (err, result) => originalCallbacks.succeed(result)).bind(null, null) : originalCallbacks.succeed;
-			callback = originalCallbacks.callback ?
-				wrapCallback(pluginConfig, originalCallbacks.callback) : originalCallbacks.callback;
+			context.done = _.isFunction(originalCallbacks.done)
+				? wrapCallback(pluginConfig, originalCallbacks.done)
+				: originalCallbacks.done;
+			context.fail = _.isFunction(originalCallbacks.fail)
+				? wrapCallback(pluginConfig, originalCallbacks.fail)
+				: originalCallbacks.fail;
+			context.succeed = _.isFunction(originalCallbacks.succeed)
+				? wrapCallback(pluginConfig, (err, result) =>
+						originalCallbacks.succeed(result)
+				  ).bind(null, null)
+				: originalCallbacks.succeed;
+			callback = originalCallbacks.callback
+				? wrapCallback(pluginConfig, originalCallbacks.callback)
+				: originalCallbacks.callback;
 
 			// Additional context to be stored with Sentry events and messages
-			const sentryContext = {
+			const sentryScope = {
 				extra: {
 					Event: event,
 					Context: context
@@ -355,13 +413,18 @@ class SentryLambdaWrapper {
 			// Depending on the endpoint type the identity information can be at
 			// event.requestContext.identity (AWS_PROXY) or at context.identity (AWS)
 			const identity =
-				!_.isNil(context.identity) ? context.identity :
-					(!_.isNil(event.requestContext) ? event.requestContext.identity : null);
+				!_.isNil(context.identity) &&
+				context.identity.constructor === Object &&
+				Object.keys(context.identity).length > 0
+					? context.identity
+					: !_.isNil(event.requestContext)
+					? event.requestContext.identity
+					: null;
 
 			if (!_.isNil(identity)) {
 				// Track the caller's Cognito identity
 				// id, username and ip_address are key fields in Sentry
-				sentryContext.user = {
+				sentryScope.user = {
 					id: identity.cognitoIdentityId || undefined,
 					username: identity.user || undefined,
 					ip_address: identity.sourceIp || undefined,
@@ -373,7 +436,7 @@ class SentryLambdaWrapper {
 
 			// Add additional tags for AWS_PROXY endpoints
 			if (!_.isNil(event.requestContext)) {
-				_.extend(sentryContext.tags, {
+				_.extend(sentryScope.tags, {
 					api_id: event.requestContext.apiId,
 					api_stage: event.requestContext.stage,
 					http_method: event.requestContext.httpMethod
@@ -388,13 +451,11 @@ class SentryLambdaWrapper {
 			});
 
 			const Sentry = pluginConfig.sentryClient;
-			Sentry.configureScope(
-				scope => {
-					scope.setUser(sentryContext.user);
-					scope.setExtra(sentryContext.extra);
-					scope.setTag(sentryContext.tags);
-				}
-			);
+			Sentry.configureScope(scope => {
+				scope.setUser(sentryScope.user);
+				scope.setExtras(sentryScope.extra);
+				scope.setTags(sentryScope.tags);
+			});
 			// Monitor for timeouts and memory usage
 			// The timers will be removed in the wrappedCtx and wrappedCb below
 			installTimers(pluginConfig, context);
@@ -421,6 +482,7 @@ class SentryLambdaWrapper {
 							user_agent: event.headers && event.headers["User-Agent"]
 						});
 					}
+					const Sentry = pluginConfig.sentryClient;
 					Sentry.addBreadcrumb(breadcrumb);
 				}
 
@@ -435,28 +497,13 @@ class SentryLambdaWrapper {
 						})
 						.catch(err => {
 							clearTimers();
-							if (sentryInstalled && err && pluginConfig.captureErrors) {
-								const Sentry = pluginConfig.sentryClient;
-								return new Promise((resolve, reject) => {
-									Sentry.captureException(err);
-									const client = Sentry.getCurrentHub().getClient();
-									if (client) {
-										client.flush(1000).then(function() {
-											reject(err);
-										});
-									}
-								});
-							}
-							else {
-								return Promise.reject(err);
-							}
+							return Promise.reject(err);
 						});
 				}
 				// Returning non-Promise values would be meaningless for lambda.
 				// But inherit the behavior of the original handler.
 				return promise;
-			}
-			catch (err) {
+			} catch (err) {
 				// Catch and log synchronous exceptions thrown by the handler
 				captureUnhandled(err);
 			}
