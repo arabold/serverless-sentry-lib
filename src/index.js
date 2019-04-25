@@ -421,7 +421,7 @@ class SentryLambdaWrapper {
 					// scope.setUser(sentryContext.user);
 					// scope.setExtras(sentryContext.extra);
 					// scope.setTags(sentryContext.tags);
-					scope.sentryContext(sentryContext);
+					scope.setContext(sentryContext);
 				}
 			);
 			// Monitor for timeouts and memory usage
