@@ -285,10 +285,10 @@ function wrapCallback(pluginConfig, cb) {
 			const client = Sentry.getCurrentHub().getClient();
 			if (client) {
 				client.flush(1000).then(function() {
-					cb(err, data);
+					cb(err);
 				});
 			} else {
-				cb(err, data);
+				cb(err);
 			}
 		} else {
 			cb(err, data);
