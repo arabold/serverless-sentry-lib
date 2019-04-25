@@ -108,10 +108,10 @@ function installSentry(pluginConfig) {
 		)
 	);
 	Sentry.configureScope(scope => {
-		scope.setContext(
+		scope.setTags(
 			_.extend(
 				{
-					tags: {
+					
 						lambda: process.env.AWS_LAMBDA_FUNCTION_NAME,
 						version: process.env.AWS_LAMBDA_FUNCTION_VERSION,
 						memory_size: process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE,
@@ -121,9 +121,9 @@ function installSentry(pluginConfig) {
 						stage: process.env.SERVERLESS_STAGE,
 						alias: process.env.SERVERLESS_ALIAS,
 						region: process.env.SERVERLESS_REGION || process.env.AWS_REGION
-					}
+					
 				},
-				pluginConfig.context
+				pluginConfig.scope.tags
 			)
 		);
 	});
@@ -149,11 +149,12 @@ function installTimers(pluginConfig, lambdaContext) {
 	function timeoutWarningFunc(cb) {
 		const Sentry = pluginConfig.sentryClient;
 		if (sentryInstalled) {
-			Sentry.captureMessage("Function Execution Time Warning", {
-				level: "warning",
-				extra: {
+			Sentry.withScope(scope => {
+				scope.setLevel('warning');
+				scope.setExtras({
 					TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis()
-				}
+				});
+				Sentry.captureMessage("Function Execution Time Warning");
 			});
 			const client = Sentry.getCurrentHub().getClient();
 			if (client) {
@@ -170,11 +171,12 @@ function installTimers(pluginConfig, lambdaContext) {
 	function timeoutErrorFunc(cb) {
 		const Sentry = pluginConfig.sentryClient;
 		if (sentryInstalled) {
-			Sentry.captureMessage("Function Timed Out", {
-				level: "error",
-				extra: {
+			Sentry.withScope(scope => {
+				scope.setLevel('error');
+				scope.setExtras({
 					TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis()
-				}
+				});
+				Sentry.captureMessage("Function Timed Out");
 			});
 			const client = Sentry.getCurrentHub().getClient();
 			if (client) {
@@ -194,13 +196,14 @@ function installTimers(pluginConfig, lambdaContext) {
 		if (p >= 0.75) {
 			const Sentry = pluginConfig.sentryClient;
 			if (sentryInstalled) {
-				Sentry.captureMessage("Low Memory Warning", {
-					level: "warning",
-					extra: {
+				Sentry.withScope(scope => {
+					scope.setLevel('warning');
+					scope.setExtras({
 						MemoryLimitInMB: memoryLimit,
 						MemoryUsedInMB: Math.floor(used)
-					}
-				});
+					})
+					Sentry.captureMessage("Low Memory Warning");
+				})
 				const client = Sentry.getCurrentHub().getClient();
 				if (client) {
 					client.flush(1000).then(function() {
@@ -372,7 +375,7 @@ class SentryLambdaWrapper {
 				wrapCallback(pluginConfig, originalCallbacks.callback) : originalCallbacks.callback;
 
 			// Additional context to be stored with Sentry events and messages
-			const sentryContext = {
+			const sentryScope = {
 				extra: {
 					Event: event,
 					Context: context
@@ -389,7 +392,7 @@ class SentryLambdaWrapper {
 			if (!_.isNil(identity)) {
 				// Track the caller's Cognito identity
 				// id, username and ip_address are key fields in Sentry
-				sentryContext.user = {
+				sentryScope.user = {
 					id: identity.cognitoIdentityId || undefined,
 					username: identity.user || undefined,
 					ip_address: identity.sourceIp || undefined,
@@ -401,7 +404,7 @@ class SentryLambdaWrapper {
 
 			// Add additional tags for AWS_PROXY endpoints
 			if (!_.isNil(event.requestContext)) {
-				_.extend(sentryContext.tags, {
+				_.extend(sentryScope.tags, {
 					api_id: event.requestContext.apiId,
 					api_stage: event.requestContext.stage,
 					http_method: event.requestContext.httpMethod
@@ -415,15 +418,15 @@ class SentryLambdaWrapper {
 				throw err;
 			});
 
-			const Sentry = pluginConfig.sentryClient;
-			Sentry.configureScope(
-				scope => {
-					// scope.setUser(sentryContext.user);
-					// scope.setExtras(sentryContext.extra);
-					// scope.setTags(sentryContext.tags);
-					scope.setContext(sentryContext);
-				}
-			);
+			//const Sentry = pluginConfig.sentryClient;
+			// Sentry.configureScope(
+			// 	scope => {
+			// 		scope.setUser(sentryScope.user);
+			// 		scope.setExtras(sentryScope.extra);
+			// 		scope.setTags(sentryScope.tags);
+			// 		//scope.setContext(sentryScope);
+			// 	}
+			// );
 			// Monitor for timeouts and memory usage
 			// The timers will be removed in the wrappedCtx and wrappedCb below
 			installTimers(pluginConfig, context);
@@ -450,6 +453,7 @@ class SentryLambdaWrapper {
 							user_agent: event.headers && event.headers["User-Agent"]
 						});
 					}
+					const Sentry = pluginConfig.sentryClient;
 					Sentry.addBreadcrumb(breadcrumb);
 				}
 
@@ -467,7 +471,15 @@ class SentryLambdaWrapper {
 							if (sentryInstalled && err && pluginConfig.captureErrors) {
 								const Sentry = pluginConfig.sentryClient;
 								return new Promise((resolve, reject) => {
-									Sentry.captureException(err);
+									Sentry.withScope(
+										scope => {
+											scope.setUser(sentryScope.user);
+											scope.setExtras(sentryScope.extra);
+											scope.setTags(sentryScope.tags);
+											//scope.setContext(sentryScope);
+											Sentry.captureException(err);
+										}
+									);
 									const client = Sentry.getCurrentHub().getClient();
 									if (client) {
 										client.flush(1000).then(function() {
