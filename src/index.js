@@ -392,7 +392,7 @@ class SentryLambdaWrapper {
 			// Depending on the endpoint type the identity information can be at
 			// event.requestContext.identity (AWS_PROXY) or at context.identity (AWS)
 			const identity =
-				!_.isNil(context.identity) ? context.identity :
+				!_.isNil(context.identity) && context.identity.constructor === Object && Object.keys(context.identity).length > 0  ? context.identity :
 					(!_.isNil(event.requestContext) ? event.requestContext.identity : null);
 
 			if (!_.isNil(identity)) {
