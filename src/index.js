@@ -278,7 +278,7 @@ function wrapCallback(pluginConfig, cb) {
 		clearTimers();
 
 		// If an error was thrown we'll report it to Sentry
-		if (err && pluginConfig.captureErrors && sentryInstalled) {
+		if (err && err !== '__emptyFailParamBackCompat' && pluginConfig.captureErrors && sentryInstalled) {
 			const Sentry = pluginConfig.sentryClient;
 			console.log('wrapCallback',err)
 			Sentry.captureException(err);
