@@ -97,7 +97,7 @@ function installSentry(pluginConfig) {
 			pluginConfig.init.integrations.push(
 				new RewriteFrames({
 					iteratee: frame => {
-						console.log(frame.filename);
+						//console.log(frame.filename);
 						if (
 							frame.filename.startsWith("/") &&
 							!frame.filename.includes("/node_modules/")
@@ -285,11 +285,12 @@ function wrapCallback(pluginConfig, cb) {
 			const client = Sentry.getCurrentHub().getClient();
 			if (client) {
 				client.flush(5000).then(function() {
-					cb(err, data);
+					cb(err);
 				});
-			} else {
-				cb(err, data);
-			}
+			} 
+		} 
+		if (err) {
+			cb(err)
 		} else {
 			cb(err, data);
 		}
