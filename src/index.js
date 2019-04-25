@@ -280,6 +280,7 @@ function wrapCallback(pluginConfig, cb) {
 		// If an error was thrown we'll report it to Sentry
 		if (err && pluginConfig.captureErrors && sentryInstalled) {
 			const Sentry = pluginConfig.sentryClient;
+			console.log('wrapCallback',err)
 			Sentry.captureException(err);
 			const client = Sentry.getCurrentHub().getClient();
 			if (client) {
@@ -513,6 +514,7 @@ class SentryLambdaWrapper {
 							clearTimers();
 							if (sentryInstalled && err && pluginConfig.captureErrors) {
 								const Sentry = pluginConfig.sentryClient;
+								console.log('handler',err)
 								return new Promise((resolve, reject) => {
 									Sentry.withScope(scope => {
 										//scope.setUser({ email: "john.doe@example.com" });
