@@ -172,7 +172,7 @@ function installTimers(pluginConfig, lambdaContext) {
 			});
 			const client = Sentry.getCurrentHub().getClient();
 			if (client) {
-				client.flush(1000).then(function() {
+				client.flush(5000).then(function() {
 					cb && cb();
 				});
 			} else {
@@ -193,7 +193,7 @@ function installTimers(pluginConfig, lambdaContext) {
 			});
 			const client = Sentry.getCurrentHub().getClient();
 			if (client) {
-				client.flush(1000).then(function() {
+				client.flush(5000).then(function() {
 					cb && cb();
 				});
 			} else {
@@ -218,7 +218,7 @@ function installTimers(pluginConfig, lambdaContext) {
 				});
 				const client = Sentry.getCurrentHub().getClient();
 				if (client) {
-					client.flush(1000).then(function() {
+					client.flush(5000).then(function() {
 						cb && cb();
 					});
 				} else {
@@ -284,7 +284,7 @@ function wrapCallback(pluginConfig, cb) {
 			Sentry.captureException(err);
 			const client = Sentry.getCurrentHub().getClient();
 			if (client) {
-				client.flush(1000).then(function() {
+				client.flush(5000).then(function() {
 					cb(err, data);
 				});
 			} else {
