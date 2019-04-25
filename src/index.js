@@ -79,19 +79,23 @@ function installSentry(pluginConfig) {
 
 	// add integration to fix Sourcemap path
 	if (pluginConfig.sourceMaps) {
-		delete pluginConfig.sourceMaps;
-		const {RewriteFrames} = require("@sentry/integrations");
-		const path = require("path");
-		pluginConfig.integrations = [
-			new RewriteFrames({
-			  iteratee: frame => {
-				if (frame.filename.startsWith("/")) {
-				  frame.filename = "app:///" + path.basename(frame.filename);
+		const RewriteFramesExists = typeof pluginConfig.integrations === 'array' &&  pluginConfig.integrations.find((integration)=>integration.name === 'RewriteFrames');
+		if (!RewriteFramesExists) {
+			if (typeof pluginConfig.integrations !== 'array') pluginConfig.integrations=[];
+		
+			const {RewriteFrames} = require("@sentry/integrations");
+			const path = require("path");
+			pluginConfig.integrations.push(
+				new RewriteFrames({
+				iteratee: frame => {
+					if (frame.filename.startsWith("/")) {
+					frame.filename = "app:///" + path.basename(frame.filename);
+					}
+					return frame;
 				}
-				return frame;
-			  }
-			})
-		]
+				})
+			)
+		}
 	}
 
 	// We're merging the plugin config options with the Sentry options. This
@@ -107,22 +111,23 @@ function installSentry(pluginConfig) {
 			pluginConfig.init
 		)
 	);
+	let tags = {
+		lambda: process.env.AWS_LAMBDA_FUNCTION_NAME,
+		version: process.env.AWS_LAMBDA_FUNCTION_VERSION,
+		memory_size: process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE,
+		log_group: process.env.AWS_LAMBDA_LOG_GROUP_NAME,
+		log_stream: process.env.AWS_LAMBDA_LOG_STREAM_NAME,
+		region: process.env.SERVERLESS_REGION || process.env.AWS_REGION
+	};
+
+	if (process.env.SERVERLESS_SERVICE) tags.service_name = process.env.SERVERLESS_SERVICE;
+	if (process.env.SERVERLESS_STAGE) tags.stage = process.env.SERVERLESS_STAGE;
+	if (process.env.SERVERLESS_ALIAS) tags.alias = process.env.SERVERLESS_ALIAS;
+
 	Sentry.configureScope(scope => {
 		scope.setTags(
 			_.extend(
-				{
-					
-						lambda: process.env.AWS_LAMBDA_FUNCTION_NAME,
-						version: process.env.AWS_LAMBDA_FUNCTION_VERSION,
-						memory_size: process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE,
-						log_group: process.env.AWS_LAMBDA_LOG_GROUP_NAME,
-						log_stream: process.env.AWS_LAMBDA_LOG_STREAM_NAME,
-						service_name: process.env.SERVERLESS_SERVICE,
-						stage: process.env.SERVERLESS_STAGE,
-						alias: process.env.SERVERLESS_ALIAS,
-						region: process.env.SERVERLESS_REGION || process.env.AWS_REGION
-					
-				},
+				tags,
 				pluginConfig.scope.tags
 			)
 		);
