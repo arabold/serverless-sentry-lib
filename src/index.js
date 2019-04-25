@@ -289,6 +289,7 @@ class RavenLambdaWrapper {
 			captureUnhandledRejections: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"), true),
 			captureMemoryWarnings:      parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"),    true),
 			captureTimeoutWarnings:     parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),  true),
+			sourceMaps:     			parseBoolean(_.get(process.env, "SENTRY_SOURCEMAPS"),  false),
 			ravenClient: null
 		};
 

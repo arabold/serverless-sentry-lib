@@ -115,6 +115,7 @@ during deployment.
 | `SENTRY_CAPTURE_UNHANDLED` | Enable capture unhandled exceptions (defaults to `true`) |
 | `SENTRY_CAPTURE_MEMORY` | Enable monitoring memory usage (defaults to `true`) |
 | `SENTRY_CAPTURE_TIMEOUTS` | Enable monitoring execution timeouts (defaults to `true`) |
+| `SENTRY_SOURCEMAPS` | Enable webpack sourcemaps support (defaults to `false`) |
 
 In addition the library checks for the following optional variables and adds
 them as custom tags automatically:
