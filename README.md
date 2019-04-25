@@ -1,4 +1,4 @@
-# ⚡️ Sentry/Raven SDK Integration For AWS Lambda and Serverless
+# ⚡️ Sentry Unified Node.js SDK Integration For AWS Lambda and Serverless
 
 [![serverless](http://public.serverless.com/badges/v3.svg)](http://www.serverless.com)
 [![npm](https://img.shields.io/npm/v/serverless-sentry-lib.svg)](https://www.npmjs.com/package/serverless-sentry-lib)
@@ -8,14 +8,15 @@
 
 ## About
 This library simplifies integration of Sentry's
-[node-raven](https://docs.sentry.io/clients/node/) library with AWS Lambda.
+[@sentry/node](https://docs.sentry.io/error-reporting/quickstart/?platform=node) library with AWS Lambda.
 The only supported platforms are Node.js 6.10 and 8.10. Python and Java
 support will require dedicated libraries. Pull requests are welcome!
 
 ### What is Raven and Sentry?
-It's a bit confusing, but _Raven_ is the official name of the error reporting SDK
-that will forward errors, exceptions and messages to the _Sentry_ server. For
-more details of what Raven and Sentry actually is, refer to the official Sentry documentation: https://docs.sentry.io/.
+It's a bit confusing, but _Raven_ *was* the old official name of the error reporting SDK
+that will forward errors, exceptions and messages to the _Sentry_ server. The new name is
+_Unified Node.js SDK_. 
+For more details of what Raven and Sentry actually is, refer to the official Sentry documentation: https://docs.sentry.io/.
 
 The `serverless-sentry-lib` library is not affiliated with either Sentry or
 Serverless but developed independently and in my spare time.
@@ -36,9 +37,9 @@ Serverless but developed independently and in my spare time.
 
 ## Installation
 
-* Install the `node-raven` module:
+* Install the `@sentry/node` module:
   ```bash
-  npm install --save raven
+  npm install --save @sentry/node
   ```
 * Install this module:
   ```bash
@@ -49,14 +50,14 @@ Serverless but developed independently and in my spare time.
 
 We use exclusively Node 6 features to ensure this code can run on AWS
 Lambda without any transpiling or further processing. We also do not use
-_any_ 3rd party node module other than `raven` itself.
+_any_ 3rd party node module other than `@sentry/node` itself.
 
 This library can be used standalone or as part of the
 [Serverless Sentry Plugin](https://github.com/arabold/serverless-sentry-plugin).
 
 ### Use as Standalone Library
 If you don't want to add another plugin to Serverless, you can use this
-library standalone without additional dependencies (besides `raven` itself).
+library standalone without additional dependencies (besides `@sentry/node` itself).
 
 You will need to extend your `serverless.yml` to include additional
 environment variables. The only required environment variable is `SENTRY_DSN`
@@ -109,7 +110,7 @@ during deployment.
 | `SENTRY_DSN` | Sentry DSN Url |
 | `SENTRY_ENVIRONMENT` | Environment (optional, e.g. "dev" or "prod") |
 | `SENTRY_RELEASE` | Release number of your project (optional) |
-| `SENTRY_AUTO_BREADCRUMBS` | Automatically create breadcrumbs (see Sentry Raven docs, default to `true`) |
+| `SENTRY_AUTO_BREADCRUMBS` | Automatically create breadcrumbs (see Sentry SDK docs, default to `true`) |
 | `SENTRY_FILTER_LOCAL` | Don't report errors from local environments (defaults to `true`) |
 | `SENTRY_CAPTURE_ERRORS` | Enable capture Lambda errors (defaults to `true`) |
 | `SENTRY_CAPTURE_UNHANDLED` | Enable capture unhandled exceptions (defaults to `true`) |
@@ -131,17 +132,17 @@ them as custom tags automatically:
 ## Usage
 For maximum flexibility this library is implemented as a wrapper around your
 original AWS Lambda handler code (your `handler.js` or similar). The
-`RavenLambdaWrapper` adds error and exception handling, and takes care
-of configuring the Raven client automatically.
+`SentryLambdaWrapper` adds error and exception handling, and takes care
+of configuring the Sentry client automatically.
 
-The `RavenLambdaWrapper` is pre-configured to reasonable defaults and
-doesn't need much setup. Simply pass in your Raven client to the wrapper
-function as shown below - that's it. Passing in your own `Raven` client is
+The `SentryLambdaWrapper` is pre-configured to reasonable defaults and
+doesn't need much setup. Simply pass in your Sentry client to the wrapper
+function as shown below - that's it. Passing in your own `Sentry` client is
 necessary to ensure that the wrapper uses the same environment as the rest
 of your code. In the rare circumstances that this isn't desired, you can
 pass in `null` instead.
 
-**ES2015: Original Lambda Handler Code Before Adding RavenLambdaWrapper**:
+**ES2015: Original Lambda Handler Code Before Adding SentryLambdaWrapper**:
 ```js
 "use strict";
 
@@ -150,38 +151,38 @@ module.exports.hello = function(event, context, callback) {
 };
 ```
 
-**ES2015: New Lambda Handler Code With RavenLambdaWrapper For Sentry Reporting**
+**ES2015: New Lambda Handler Code With SentryLambdaWrapper For Sentry Reporting**
 ```js
 "use strict";
 
-const Raven = require("raven"); // Official `raven` module
-const RavenLambdaWrapper = require("serverless-sentry-lib"); // This helper library
+const Sentry = require("@sentry/node"); // Official `Unified Node.js SDK` module
+const SentryLambdaWrapper = require("serverless-sentry-lib"); // This helper library
 
-module.exports.hello = RavenLambdaWrapper.handler(Raven, (event, context, callback) => {
+module.exports.hello = SentryLambdaWrapper.handler(Sentry, (event, context, callback) => {
   // Here follows your original Lambda handler code...
   callback(null, { message: 'Go Serverless! Your function executed successfully!', event });
 });
 ```
 
-**ES2017: Original Lambda Handler Code Before Adding RavenLambdaWrapper**:
+**ES2017: Original Lambda Handler Code Before Adding SentryLambdaWrapper**:
 ```js
 exports.handler = async (event, context) => {
   return { message: 'Go Serverless! Your function executed successfully!', event };
 };
 ```
 
-**ES2017: New Lambda Handler Code With RavenLambdaWrapper For Sentry Reporting**
+**ES2017: New Lambda Handler Code With SentryLambdaWrapper For Sentry Reporting**
 ```js
-const Raven = require("raven"); // Official `raven` module
-const RavenLambdaWrapper = require("serverless-sentry-lib"); // This helper library
+const Sentry = require("@sentry/node"); // Official `Unified Node.js SDK` module
+const SentryLambdaWrapper = require("serverless-sentry-lib"); // This helper library
 
-exports.handler = RavenLambdaWrapper.handler(Raven, async (event, context) => {
+exports.handler = SentryLambdaWrapper.handler(Sentry, async (event, context) => {
   // Here follows your original Lambda handler code...
   return { message: 'Go Serverless! Your function executed successfully!', event };
 });
 ```
 
-Once your Lambda handler code is wrapped in the `RavenLambdaWrapper`, it will
+Once your Lambda handler code is wrapped in the `SentryLambdaWrapper`, it will
 be extended it with automatic error reporting. Whenever your Lambda handler
 sets an error response, the error is forwarded to Sentry with additional
 context information.
@@ -191,11 +192,11 @@ context information.
 As shown above you can use environment variables to control the Sentry
 integration. In some scenarios in which environment variables are not desired
 or in which custom logic needs to be executed, you can also pass in
-configuration options to the `RavenLambdaWrapper` directly:
+configuration options to the `SentryLambdaWrapper` directly:
 
-* `ravenClient` - Your Raven client. Don't forget to set this if you send your
+* `sentryClient` - Your Sentry client. Don't forget to set this if you send your
   own custom messages and exceptions to Sentry later in your code.
-* `autoBreadcrumbs` - Automatically create breadcrumbs (see Sentry Raven docs,
+* `autoBreadcrumbs` - Automatically create breadcrumbs (see Sentry SDK docs,
   defaults to `true`)
 * `filterLocal` - don't report errors from local environments (defaults to `true`)
 * `captureErrors` - capture Lambda errors (defaults to `true`)
@@ -204,41 +205,31 @@ configuration options to the `RavenLambdaWrapper` directly:
 * `captureTimeoutWarnings` - monitor execution timeouts (defaults to `true`)
 
 ```js
-const RavenLambdaWrapper = require("serverless-sentry-lib");
+const SentryLambdaWrapper = require("serverless-sentry-lib");
 
 // Wrap handler for automated error and exception logging
-const ravenConfig = {
+const sentryConfig = {
   captureErrors: false,
   captureUnhandledRejections: true,
   captureMemoryWarnings: true,
   captureTimeoutWarnings: true,
-  ravenClient: require("raven") // don't forget!
+  sentryClient: require("@sentry/node") // don't forget!
 };
-module.exports.handler = RavenLambdaWrapper.handler(ravenConfig, (event, context, callback) => {
+module.exports.handler = SentryLambdaWrapper.handler(sentryConfig, (event, context, callback) => {
   // your Lambda Functions Handler code goes here...
-  Raven.captureMessage("Hello from Lambda!", { level: "info "});
+  Sentry.captureMessage("Hello from Lambda!", { level: "info "});
 });
 ```
 
 
-### Accessing the Raven Client for Capturing Custom Messages and Exceptions
+### Accessing the Sentry Client for Capturing Custom Messages and Exceptions
 If you want to capture a message or exception from anywhere in your code,
-simply use the Raven client as usual. It is a singleton instance and doesn't
+simply use the Sentry client as usual. It is a singleton instance and doesn't
 need to be configured again:
 
 ```js
-const Raven = require("raven");
-Raven.captureMessage("Hello from Lambda!", { level: "info "});
-```
-
-For backward compatibility with the old Serverless plugin 0.2.x, a global
-object `sls_raven` is exposed that can be used to access the current Raven
-client instead. However, the use of `sls_raven` is deprecated and discouraged:
-
-```js
-if (global.sls_raven) { // DEPRECATED!
-  global.sls_raven.captureMessage("Hello from Lambda", { level: "info" });
-}
+const Sentry = require("@sentry/node");
+Sentry.captureMessage("Hello from Lambda!", { level: "info "});
 ```
 
 For further documentation on how to use it to capture your own messages refer to
@@ -280,7 +271,7 @@ without warnings.
 
 ### Turn Sentry Reporting On/Off
 Obviously Sentry reporting is only enabled if you wrap your code using the
-`RavenLambdaWrapper` as shown in the examples above. In addition, error
+`SentryLambdaWrapper` as shown in the examples above. In addition, error
 reporting is only active if the `SENTRY_DSN` environment variable is set.
 This is an easy way to enable or disable reporting as a whole or for specific
 functions.
@@ -288,25 +279,33 @@ functions.
 In some cases it might be desirable to disable only error reporting itself but
 keep the advanced features such as timeout and low memory warnings in place.
 This can be achieved via setting the respective options in the
-environment variables or the `RavenLambdaWrapper` during initialization:
+environment variables or the `SentryLambdaWrapper` during initialization:
 
 ```js
-const RavenLambdaWrapper = require("serverless-sentry-lib");
+const SentryLambdaWrapper = require("serverless-sentry-lib");
 
 // Wrap handler for automated error and exception logging
-const ravenConfig = {
+const sentryConfig = {
   captureErrors: false,             // Don't log error responses from the Lambda ...
   captureUnhandledRejections: true, // but keep unhandled exception logging, ...
   captureMemoryWarnings: true,      // memory warnings ...
   captureTimeoutWarnings: true,     // and timeout warnings enabled.
-  ravenClient: require("raven")
+  sentryClient: require("@sentry/node")
 };
-module.exports.handler = RavenLambdaWrapper.handler(ravenConfig, (event, context, callback) => {
+module.exports.handler = SentryLambdaWrapper.handler(sentryConfig, (event, context, callback) => {
   // your Lambda Functions Handler code goes here...
 });
 ```
 
 ## Version History
+
+### 1.2.0
+
+* upgrade from sentry SDK `raven` to new _Unified Node.js SDK_ 
+  [`@sentry/node`](https://docs.sentry.io/error-reporting/configuration/?platform=node) 
+  and remove raven context. 
+* ⚠️ _ravenClient_ is now _sentryClient_
+* ⚠️ remove global _sls_sentry_ for backward compatibility with oldserverless-sentry-plugin 0.2.x/0.3.x
 
 ### 1.1.2
 
@@ -327,7 +326,7 @@ module.exports.handler = RavenLambdaWrapper.handler(ravenConfig, (event, context
 ### 1.0.1
 
 * Fixed an issue with `context.callbackWaitsForEmptyEventLoop` not working properly if set
-  outside of `RavenLambdaWrapper.handler`. The `context` object is now retained and not
+  outside of `SentryLambdaWrapper.handler`. The `context` object is now retained and not
   cloned anymore which should make things more robust.
 
 ### 1.0.0
@@ -354,6 +353,6 @@ module.exports.handler = RavenLambdaWrapper.handler(ravenConfig, (event, context
 - [x] Write some tests. Seriously.
 - [x] Add more test cases. Check the source for some to-dos!
 - [ ] Ensure all `captureException` and `captureMessage` haven been completed
-      before returning from the `RavenLambdaWrapper` call. This is especially
+      before returning from the `SentryLambdaWrapper` call. This is especially
       important if the Lambda context is initialized with
       `context.callbackWaitsForEmptyEventLoop = false`
