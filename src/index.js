@@ -217,14 +217,14 @@ function installTimers(pluginConfig, lambdaContext) {
 		}
 	}
 
-	if (pluginConfig.init && pluginConfig.init.captureTimeoutWarnings) {
+	if (pluginConfig.captureTimeoutWarnings) {
 		// We schedule the warning at half the maximum execution time and
 		// the error a few milliseconds before the actual timeout happens.
 		timeoutWarning = setTimeout(timeoutWarningFunc, timeRemaining / 2);
 		timeoutError = setTimeout(timeoutErrorFunc, Math.max(timeRemaining - 500, 0));
 	}
 
-	if (pluginConfig.init && pluginConfig.init.captureMemoryWarnings) {
+	if (pluginConfig.captureMemoryWarnings) {
 		// Schedule memory watch dog interval. Note that we're not using
 		// setInterval() here as we don't want invokes to be skipped.
 		memoryWatch = setTimeout(memoryWatchFunc, 500);
@@ -262,7 +262,7 @@ function wrapCallback(pluginConfig, cb) {
 		clearTimers();
 
 		// If an error was thrown we'll report it to Sentry
-		if (err && pluginConfig.init && pluginConfig.init.captureErrors && sentryInstalled) {
+		if (err && pluginConfig.captureErrors && sentryInstalled) {
 			const Sentry = pluginConfig.sentryClient;
 			Sentry.captureException(err);
 			const client = Sentry.getCurrentHub().getClient();
@@ -310,10 +310,10 @@ class SentryLambdaWrapper {
 	 * @param {boolean} [pluginConfig.sentryClient] - Sentry client instance
 	 * @param {boolean} [pluginConfig.autoBreadcrumbs] - Automatically create breadcrumbs (see Sentry SDK docs, default to `true`)
 	 * @param {boolean} [pluginConfig.filterLocal] - don't report errors from local environments (defaults to `true`)
-	 * @param {boolean} [pluginConfig.init.captureErrors] - capture Lambda errors (defaults to `true`)
-	 * @param {boolean} [pluginConfig.init.captureUnhandledRejections] - capture unhandled exceptions (defaults to `true`)
-	 * @param {boolean} [pluginConfig.init.captureMemoryWarnings] - monitor memory usage (defaults to `true`)
-	 * @param {boolean} [pluginConfig.init.captureTimeoutWarnings] - monitor execution timeouts (defaults to `true`)
+	 * @param {boolean} [pluginConfig.captureErrors] - capture Lambda errors (defaults to `true`)
+	 * @param {boolean} [pluginConfig.captureUnhandledRejections] - capture unhandled exceptions (defaults to `true`)
+	 * @param {boolean} [pluginConfig.captureMemoryWarnings] - monitor memory usage (defaults to `true`)
+	 * @param {boolean} [pluginConfig.captureTimeoutWarnings] - monitor execution timeouts (defaults to `true`)
 	 * @param {Function} handler - Original Lambda function handler
 	 * @return {Function} - Wrapped Lambda function handler with Sentry instrumentation
 	 */
@@ -326,12 +326,12 @@ class SentryLambdaWrapper {
 		}
 
 		const pluginConfigDefaults = {
-			init: {
-				captureErrors:              parseBoolean(_.get(process.env, "SENTRY_CAPTURE_ERRORS"),    true),
-				captureUnhandledRejections: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"), true),
-				captureMemoryWarnings:      parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"),    true),
-				captureTimeoutWarnings:     parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),  true),
-			},
+			init:{},
+			captureErrors:              parseBoolean(_.get(process.env, "SENTRY_CAPTURE_ERRORS"),    true),
+			captureUnhandledRejections: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"), true),
+			captureMemoryWarnings:      parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"),    true),
+			captureTimeoutWarnings:     parseBoolean(_.get(process.env, "SENTRY_CAPTURE_TIMEOUTS"),  true),
+			
 			autoBreadcrumbs:            parseBoolean(_.get(process.env, "SENTRY_AUTO_BREADCRUMBS"),  true),
 			filterLocal:                parseBoolean(_.get(process.env, "SENTRY_FILTER_LOCAL"),      true),
 			sourceMaps:     			parseBoolean(_.get(process.env, "SENTRY_SOURCEMAPS"),  false),
@@ -464,7 +464,7 @@ class SentryLambdaWrapper {
 						})
 						.catch(err => {
 							clearTimers();
-							if (sentryInstalled && err && pluginConfig.init && pluginConfig.init.captureErrors) {
+							if (sentryInstalled && err && pluginConfig.captureErrors) {
 								const Sentry = pluginConfig.sentryClient;
 								return new Promise((resolve, reject) => {
 									Sentry.captureException(err);
