@@ -28,7 +28,8 @@ const SentryMock = {
 	captureException: (err, context) => {},
 	configureScope: (scope) => {},
 	withScope: (fun) => {fun(ScopeMock)},
-	getCurrentHub: () => ({ getClient: () => ({ flush: () => Promise.resolve() }) })
+	getCurrentHub: () => ({ getClient: () => ({ flush: () => Promise.resolve() }) }),
+	flush: () => Promise.resolve()
 };
 
 describe("SentryLambdaWrapper", () => {

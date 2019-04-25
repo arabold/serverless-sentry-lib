@@ -170,14 +170,9 @@ function installTimers(pluginConfig, lambdaContext) {
 				});
 				Sentry.captureMessage("Function Execution Time Warning");
 			});
-			const client = Sentry.getCurrentHub().getClient();
-			if (client) {
-				client.flush(5000).then(function() {
-					cb && cb();
-				});
-			} else {
+			Sentry.flush(5000).then(function() {
 				cb && cb();
-			}
+			});
 		}
 	}
 
@@ -191,14 +186,9 @@ function installTimers(pluginConfig, lambdaContext) {
 				});
 				Sentry.captureMessage("Function Timed Out");
 			});
-			const client = Sentry.getCurrentHub().getClient();
-			if (client) {
-				client.flush(5000).then(function() {
-					cb && cb();
-				});
-			} else {
+			Sentry.flush(5000).then(function() {
 				cb && cb();
-			}
+			});
 		}
 	}
 
@@ -216,14 +206,9 @@ function installTimers(pluginConfig, lambdaContext) {
 					});
 					Sentry.captureMessage("Low Memory Warning");
 				});
-				const client = Sentry.getCurrentHub().getClient();
-				if (client) {
-					client.flush(5000).then(function() {
-						cb && cb();
-					});
-				} else {
+					Sentry.flush(5000).then(function() {
 					cb && cb();
-				}
+				});
 			}
 		} else {
 			memoryWatch = setTimeout(memoryWatchFunc, 500);
@@ -287,13 +272,10 @@ function wrapCallback(pluginConfig, cb) {
 			const Sentry = pluginConfig.sentryClient;
 			console.log("wrapCallback", err);
 			Sentry.captureException(err);
-			const client = Sentry.getCurrentHub().getClient();
-			if (client) {
-				client.flush(5000).then(function() {
-					cb(err);
-				});
-				return;
-			}
+			Sentry.flush(5000).then(function() {
+				cb(err);
+			});
+			return;
 		}
 		if (err) {
 			cb(err);
@@ -470,14 +452,11 @@ class SentryLambdaWrapper {
 			});
 
 			const Sentry = pluginConfig.sentryClient;
-			Sentry.configureScope(
-				scope => {
-					scope.setUser(sentryScope.user);
-					scope.setExtras(sentryScope.extra);
-					scope.setTags(sentryScope.tags);
-					//scope.setContext(sentryScope);
-				}
-			);
+			Sentry.configureScope(scope => {
+				scope.setUser(sentryScope.user);
+				scope.setExtras(sentryScope.extra);
+				scope.setTags(sentryScope.tags);
+			});
 			// Monitor for timeouts and memory usage
 			// The timers will be removed in the wrappedCtx and wrappedCb below
 			installTimers(pluginConfig, context);
@@ -518,38 +497,8 @@ class SentryLambdaWrapper {
 							return Promise.resolve(...data);
 						})
 						.catch(err => {
-							return Promise.reject(err)
-							// clearTimers();
-							// if (sentryInstalled && err && pluginConfig.captureErrors) {
-							// 	const Sentry = pluginConfig.sentryClient;
-							// 	console.log('handler',err)
-							// 	return new Promise((resolve, reject) => {
-							// 		Sentry.withScope(scope => {
-							// 			//scope.setUser({ email: "john.doe@example.com" });
-							// 			// scope.setTag("page_locale", "de-at");
-							// 			// scope.setExtra("Event", sentryScope.extra.Event);
-							// 			// scope.setExtra("Context", sentryScope.extra.Context);
-							// 			// scope.setUser({
-							// 			// 	username: sentryScope.user.username,
-							// 			// 	user_agent: sentryScope.user.user_agent,
-							// 			// 	ip_address: sentryScope.user.ip_address
-							// 			// });
-							// 			scope.setUser(sentryScope.user);
-							// 			scope.setExtras(sentryScope.extra);
-							// 			scope.setTags(sentryScope.tags);
-							// 			//scope.setContext(sentryScope);
-							// 			Sentry.captureException(err);
-							// 		});
-							// 		const client = Sentry.getCurrentHub().getClient();
-							// 		if (client) {
-							// 			client.flush(5000).then(function() {
-							// 				reject(null);
-							// 			});
-							// 		}
-							// 	});
-							// } else {
-							// 	return Promise.reject(err);
-							// }
+							clearTimers();
+							return Promise.reject(err);
 						});
 				}
 				// Returning non-Promise values would be meaningless for lambda.
