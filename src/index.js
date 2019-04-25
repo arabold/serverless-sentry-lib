@@ -535,7 +535,7 @@ class SentryLambdaWrapper {
 									const client = Sentry.getCurrentHub().getClient();
 									if (client) {
 										client.flush(5000).then(function() {
-											reject(err);
+											reject(null);
 										});
 									}
 								});
