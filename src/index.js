@@ -330,6 +330,7 @@ class SentryLambdaWrapper {
 
 		const pluginConfigDefaults = {
 			init:{},
+			scope: {tags:{},extra:{},user:{}},
 			captureErrors:              parseBoolean(_.get(process.env, "SENTRY_CAPTURE_ERRORS"),    true),
 			captureUnhandledRejections: parseBoolean(_.get(process.env, "SENTRY_CAPTURE_UNHANDLED"), true),
 			captureMemoryWarnings:      parseBoolean(_.get(process.env, "SENTRY_CAPTURE_MEMORY"),    true),

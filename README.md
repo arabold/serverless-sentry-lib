@@ -215,7 +215,7 @@ const sentryConfig = {
     captureMemoryWarnings: true,
     captureTimeoutWarnings: true,
   init: {},
-  context: {
+  scope: {
     tags: {},
     extra: {},
     user: {}
