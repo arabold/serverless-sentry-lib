@@ -278,19 +278,25 @@ function wrapCallback(pluginConfig, cb) {
 		clearTimers();
 
 		// If an error was thrown we'll report it to Sentry
-		if (err && err !== '__emptyFailParamBackCompat' && pluginConfig.captureErrors && sentryInstalled) {
+		if (
+			err &&
+			err !== "__emptyFailParamBackCompat" &&
+			pluginConfig.captureErrors &&
+			sentryInstalled
+		) {
 			const Sentry = pluginConfig.sentryClient;
-			console.log('wrapCallback',err)
+			console.log("wrapCallback", err);
 			Sentry.captureException(err);
 			const client = Sentry.getCurrentHub().getClient();
 			if (client) {
 				client.flush(5000).then(function() {
 					cb(err);
 				});
-			} 
-		} 
+				return;
+			}
+		}
 		if (err) {
-			cb(err)
+			cb(err);
 		} else {
 			cb(err, data);
 		}
