@@ -77,6 +77,23 @@ function installSentry(pluginConfig) {
 		return;
 	}
 
+	// add integration to fix Sourcemap path
+	if (pluginConfig.sourceMaps) {
+		delete pluginConfig.sourceMaps;
+		const {RewriteFrames} = require("@sentry/integrations");
+		const path = require("path");
+		pluginConfig.integrations = [
+			new RewriteFrames({
+			  iteratee: frame => {
+				if (frame.filename.startsWith("/")) {
+				  frame.filename = "app:///" + path.basename(frame.filename);
+				}
+				return frame;
+			  }
+			})
+		]
+	}
+
 	// We're merging the plugin config options with the Sentry options. This
 	// allows us to control all aspects of Sentry in a single location -
 	// our plugin configuration.
