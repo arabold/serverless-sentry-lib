@@ -334,19 +334,6 @@ describe("SentryLambdaWrapper", () => {
 				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error");
 			});
 
-			it("should capture rejection", () => {
-				const handler = (event, context) => {
-					return Promise.reject(new Error("Test Error"));
-				};
-
-				const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
-				const spy = sandbox.spy(SentryMock, "captureException");
-				return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error")
-				.then(() => {
-					expect(spy).to.be.calledOnce;
-					expect(spy).to.be.calledWith(sinon.match.instanceOf(Error).and(sinon.match.has("message", "Test Error")));
-				});
-			});
 		});
 
 		describe("Context", () => {

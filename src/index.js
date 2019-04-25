@@ -206,7 +206,7 @@ function installTimers(pluginConfig, lambdaContext) {
 					});
 					Sentry.captureMessage("Low Memory Warning");
 				});
-					Sentry.flush(5000).then(function() {
+				Sentry.flush(5000).then(function() {
 					cb && cb();
 				});
 			}
@@ -270,7 +270,6 @@ function wrapCallback(pluginConfig, cb) {
 			sentryInstalled
 		) {
 			const Sentry = pluginConfig.sentryClient;
-			console.log("wrapCallback", err);
 			Sentry.captureException(err);
 			Sentry.flush(5000).then(function() {
 				cb(err);
