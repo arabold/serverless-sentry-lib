@@ -285,10 +285,10 @@ function wrapCallback(pluginConfig, cb) {
 			const client = Sentry.getCurrentHub().getClient();
 			if (client) {
 				client.flush(1000).then(function() {
-					cb(err);
+					cb(err, data);
 				});
 			} else {
-				cb(err);
+				cb(err, data);
 			}
 		} else {
 			cb(err, data);
@@ -462,15 +462,15 @@ class SentryLambdaWrapper {
 				throw err;
 			});
 
-			//const Sentry = pluginConfig.sentryClient;
-			// Sentry.configureScope(
-			// 	scope => {
-			// 		scope.setUser(sentryScope.user);
-			// 		scope.setExtras(sentryScope.extra);
-			// 		scope.setTags(sentryScope.tags);
-			// 		//scope.setContext(sentryScope);
-			// 	}
-			// );
+			const Sentry = pluginConfig.sentryClient;
+			Sentry.configureScope(
+				scope => {
+					scope.setUser(sentryScope.user);
+					scope.setExtras(sentryScope.extra);
+					scope.setTags(sentryScope.tags);
+					//scope.setContext(sentryScope);
+				}
+			);
 			// Monitor for timeouts and memory usage
 			// The timers will be removed in the wrappedCtx and wrappedCb below
 			installTimers(pluginConfig, context);
@@ -511,37 +511,38 @@ class SentryLambdaWrapper {
 							return Promise.resolve(...data);
 						})
 						.catch(err => {
-							clearTimers();
-							if (sentryInstalled && err && pluginConfig.captureErrors) {
-								const Sentry = pluginConfig.sentryClient;
-								console.log('handler',err)
-								return new Promise((resolve, reject) => {
-									Sentry.withScope(scope => {
-										//scope.setUser({ email: "john.doe@example.com" });
-										// scope.setTag("page_locale", "de-at");
-										// scope.setExtra("Event", sentryScope.extra.Event);
-										// scope.setExtra("Context", sentryScope.extra.Context);
-										// scope.setUser({
-										// 	username: sentryScope.user.username,
-										// 	user_agent: sentryScope.user.user_agent,
-										// 	ip_address: sentryScope.user.ip_address
-										// });
-										scope.setUser(sentryScope.user);
-										scope.setExtras(sentryScope.extra);
-										scope.setTags(sentryScope.tags);
-										//scope.setContext(sentryScope);
-										Sentry.captureException(err);
-									});
-									const client = Sentry.getCurrentHub().getClient();
-									if (client) {
-										client.flush(5000).then(function() {
-											reject(null);
-										});
-									}
-								});
-							} else {
-								return Promise.reject(err);
-							}
+							return Promise.reject(err)
+							// clearTimers();
+							// if (sentryInstalled && err && pluginConfig.captureErrors) {
+							// 	const Sentry = pluginConfig.sentryClient;
+							// 	console.log('handler',err)
+							// 	return new Promise((resolve, reject) => {
+							// 		Sentry.withScope(scope => {
+							// 			//scope.setUser({ email: "john.doe@example.com" });
+							// 			// scope.setTag("page_locale", "de-at");
+							// 			// scope.setExtra("Event", sentryScope.extra.Event);
+							// 			// scope.setExtra("Context", sentryScope.extra.Context);
+							// 			// scope.setUser({
+							// 			// 	username: sentryScope.user.username,
+							// 			// 	user_agent: sentryScope.user.user_agent,
+							// 			// 	ip_address: sentryScope.user.ip_address
+							// 			// });
+							// 			scope.setUser(sentryScope.user);
+							// 			scope.setExtras(sentryScope.extra);
+							// 			scope.setTags(sentryScope.tags);
+							// 			//scope.setContext(sentryScope);
+							// 			Sentry.captureException(err);
+							// 		});
+							// 		const client = Sentry.getCurrentHub().getClient();
+							// 		if (client) {
+							// 			client.flush(5000).then(function() {
+							// 				reject(null);
+							// 			});
+							// 		}
+							// 	});
+							// } else {
+							// 	return Promise.reject(err);
+							// }
 						});
 				}
 				// Returning non-Promise values would be meaningless for lambda.
