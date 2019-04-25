@@ -9,13 +9,15 @@
 ## About
 This library simplifies integration of Sentry's
 [@sentry/node](https://docs.sentry.io/error-reporting/quickstart/?platform=node) library with AWS Lambda.
-The only supported platforms are Node.js 6.10 and 8.10. Python and Java
+The only supported platforms are Node.js 8.10. Python and Java
 support will require dedicated libraries. Pull requests are welcome!
 
 ### What is Raven and Sentry?
-It's a bit confusing, but _Raven_ *was* the old official name of the error reporting SDK
-that will forward errors, exceptions and messages to the _Sentry_ server. The new name is
-_Unified Node.js SDK_. 
+It's a bit confusing, but _Raven_ *was the old official name* of the error reporting SDK.
+The name of the new lib is _Unified Node.js SDK_. 
+If you still need to use _Raven_ please use version 1.1.x of this library.
+
+The SDK will forward errors, exceptions and messages to the _Sentry_ server.
 For more details of what Raven and Sentry actually is, refer to the official Sentry documentation: https://docs.sentry.io/.
 
 The `serverless-sentry-lib` library is not affiliated with either Sentry or
@@ -199,11 +201,11 @@ configuration options to the `SentryLambdaWrapper` directly:
 * `autoBreadcrumbs` - Automatically create breadcrumbs (see Sentry SDK docs,
   defaults to `true`)
 * `filterLocal` - don't report errors from local environments (defaults to `true`)
-
 * `captureErrors` - capture Lambda errors (defaults to `true`)
 * `captureUnhandledRejections` - capture unhandled exceptions (defaults to `true`)
 * `captureMemoryWarnings` - monitor memory usage (defaults to `true`)
 * `captureTimeoutWarnings` - monitor execution timeouts (defaults to `true`)
+* `sourceMaps` - activate Integration RewriteFrames to allow to use uploaded sourcemaps with AWS Lambda (defaults to `false`)
 
 ```js
 const SentryLambdaWrapper = require("serverless-sentry-lib");
