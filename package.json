@@ -42,5 +42,8 @@
   },
   "peerDependencies": {
     "@sentry/node": "^5.1.0"
+  },
+  "dependencies": {
+    "@sentry/integrations": "^5.1.0"
   }
 }
