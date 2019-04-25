@@ -84,12 +84,12 @@ function installSentry(pluginConfig) {
 	if (pluginConfig.sourceMaps) {
 		const RewriteFramesExists =
 			pluginConfig.init &&
-			typeof pluginConfig.init.integrations === "array" &&
+			Array.isArray(pluginConfig.init.integrations) &&
 			pluginConfig.init.integrations.find(
 				integration => integration.name === "RewriteFrames"
 			);
 		if (!RewriteFramesExists) {
-			if (typeof pluginConfig.init.integrations !== "array")
+			if (!Array.isArray(pluginConfig.init.integrations))
 				pluginConfig.init.integrations = [];
 
 			const { RewriteFrames } = require("@sentry/integrations");
@@ -124,7 +124,7 @@ function installSentry(pluginConfig) {
 			pluginConfig.init
 		)
 	);
-	let tags = {
+	const tags = {
 		lambda: process.env.AWS_LAMBDA_FUNCTION_NAME,
 		version: process.env.AWS_LAMBDA_FUNCTION_VERSION,
 		memory_size: process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE,
@@ -210,7 +210,8 @@ function installTimers(pluginConfig, lambdaContext) {
 					cb && cb();
 				});
 			}
-		} else {
+		}
+		else {
 			memoryWatch = setTimeout(memoryWatchFunc, 500);
 		}
 	}
@@ -278,7 +279,8 @@ function wrapCallback(pluginConfig, cb) {
 		}
 		if (err) {
 			cb(err);
-		} else {
+		}
+		else {
 			cb(err, data);
 		}
 	};
@@ -297,9 +299,11 @@ function parseBoolean(value, defaultValue) {
 		.toLowerCase();
 	if (["true", "t", "1", "yes", "y"].includes(v)) {
 		return true;
-	} else if (["false", "f", "0", "no", "n"].includes(v)) {
+	}
+	else if (["false", "f", "0", "no", "n"].includes(v)) {
 		return false;
-	} else {
+	}
+	else {
 		return defaultValue;
 	}
 }
@@ -394,8 +398,8 @@ class SentryLambdaWrapper {
 				: originalCallbacks.fail;
 			context.succeed = _.isFunction(originalCallbacks.succeed)
 				? wrapCallback(pluginConfig, (err, result) =>
-						originalCallbacks.succeed(result)
-				  ).bind(null, null)
+					originalCallbacks.succeed(result)
+				).bind(null, null)
 				: originalCallbacks.succeed;
 			callback = originalCallbacks.callback
 				? wrapCallback(pluginConfig, originalCallbacks.callback)
@@ -418,8 +422,8 @@ class SentryLambdaWrapper {
 				Object.keys(context.identity).length > 0
 					? context.identity
 					: !_.isNil(event.requestContext)
-					? event.requestContext.identity
-					: null;
+						? event.requestContext.identity
+						: null;
 
 			if (!_.isNil(identity)) {
 				// Track the caller's Cognito identity
@@ -503,7 +507,8 @@ class SentryLambdaWrapper {
 				// Returning non-Promise values would be meaningless for lambda.
 				// But inherit the behavior of the original handler.
 				return promise;
-			} catch (err) {
+			}
+			catch (err) {
 				// Catch and log synchronous exceptions thrown by the handler
 				captureUnhandled(err);
 			}
