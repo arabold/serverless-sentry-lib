@@ -79,13 +79,13 @@ function installSentry(pluginConfig) {
 
 	// add integration to fix Sourcemap path
 	if (pluginConfig.sourceMaps) {
-		const RewriteFramesExists = typeof pluginConfig.integrations === 'array' &&  pluginConfig.integrations.find((integration)=>integration.name === 'RewriteFrames');
+		const RewriteFramesExists = pluginConfig.init && typeof pluginConfig.init.integrations === 'array' &&  pluginConfig.init.integrations.find((integration)=>integration.name === 'RewriteFrames');
 		if (!RewriteFramesExists) {
-			if (typeof pluginConfig.integrations !== 'array') pluginConfig.integrations=[];
+			if (typeof pluginConfig.init.integrations !== 'array') pluginConfig.init.integrations=[];
 		
 			const {RewriteFrames} = require("@sentry/integrations");
 			const path = require("path");
-			pluginConfig.integrations.push(
+			pluginConfig.init.integrations.push(
 				new RewriteFrames({
 				iteratee: frame => {
 					if (frame.filename.startsWith("/")) {
