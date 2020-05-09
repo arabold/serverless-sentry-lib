@@ -1,18 +1,31 @@
 {
   "name": "serverless-sentry-lib",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Serverless Sentry Lib - Automatically send errors and exceptions to Sentry (https://sentry.io)",
-  "main": "src/index.js",
-  "author": "Andre Rabold",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/arabold/serverless-sentry-lib.git"
   },
+  "author": "Andre Rabold",
+  "homepage": "https://github.com/arabold/serverless-sentry-plugin",
   "bugs": {
     "url": "https://github.com/arabold/serverless-sentry-plugin/issues"
   },
-  "homepage": "https://github.com/arabold/serverless-sentry-plugin",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc --build tsconfig.release.json",
+    "lint": "tsc --noemit && eslint 'src/**/*.{js,ts}'",
+    "postversion": "git push && git push --tags",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test && npm run lint",
+    "preversion": "npm test && npm run lint && npm run build && git add dist/",
+    "test": "mocha src/*.test.ts --require ts-node/register"
+  },
+  "files": [
+    "dist/*",
+    "src/*"
+  ],
   "keywords": [
     "serverless plugin sentry",
     "serverless framework plugin",
@@ -28,19 +41,64 @@
     "sentry",
     "getsentry.com"
   ],
-  "scripts": {
-    "test": "mocha src/*.test.js",
-    "lint": "eslint src/"
+  "peerDependencies": {
+    "@sentry/node": "^5.15.5"
+  },
+  "dependencies": {
+    "@sentry/integrations": "^5.15.5"
   },
   "devDependencies": {
-    "chai": "^4.1.2",
+    "@sentry/node": "^5.15.5",
+    "@types/aws-lambda": "^8.10.51",
+    "@types/chai": "^4.2.11",
+    "@types/chai-as-promised": "^7.1.2",
+    "@types/eslint": "^6.8.0",
+    "@types/eslint-plugin-prettier": "^3.1.0",
+    "@types/mocha": "^7.0.2",
+    "@types/node": "^13.13.5",
+    "@types/prettier": "^2.0.0",
+    "@types/sinon": "^9.0.0",
+    "@types/sinon-chai": "^3.2.4",
+    "@typescript-eslint/eslint-plugin": "^2.31.0",
+    "@typescript-eslint/parser": "^2.31.0",
+    "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
-    "eslint": "^5.4.0",
-    "mocha": "^5.2.0",
-    "sinon": "^6.0.1",
-    "sinon-chai": "^3.2.0"
+    "eslint": "^7.0.0",
+    "eslint-plugin-prettier": "^3.1.3",
+    "eslint-plugin-promise": "^4.2.1",
+    "husky": "^4.2.5",
+    "import-sort-style-module": "^6.0.0",
+    "mocha": "^7.1.2",
+    "prettier": "^2.0.5",
+    "prettier-plugin-import-sort": "0.0.4",
+    "prettier-plugin-package": "^1.0.0",
+    "sinon": "^9.0.2",
+    "sinon-chai": "^3.5.0",
+    "ts-node": "^8.10.1",
+    "typescript": "^3.8.3"
   },
-  "peerDependencies": {
-    "raven": "2.x"
+  "types": "dist/index.d.ts",
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lint && npm run test"
+    }
+  },
+  "importSort": {
+    ".js, .jsx, .ts, .tsx": {
+      "style": "module",
+      "parser": "typescript"
+    }
+  },
+  "prettier": {
+    "printWidth": 120,
+    "tabWidth": 2,
+    "useTabs": false,
+    "semi": true,
+    "singleQuote": false,
+    "quoteProps": "as-needed",
+    "trailingComma": "all",
+    "bracketSpacing": true,
+    "jsxBracketSameLine": false,
+    "arrowParens": "always"
   }
 }
