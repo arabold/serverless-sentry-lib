@@ -201,14 +201,14 @@ export default class SentryLambdaWrapper {
             installSentry(pluginConfig);
         }
         return (event, context, callback) => {
-            var _a;
+            var _a, _b, _c, _d;
             if (!isSentryInstalled) {
                 return handler(event, context, callback);
             }
             const originalCallbacks = {
-                done: context.done.bind(context),
-                succeed: context.succeed.bind(context),
-                fail: context.fail.bind(context),
+                done: (_a = context.done) === null || _a === void 0 ? void 0 : _a.bind(context),
+                succeed: (_b = context.succeed) === null || _b === void 0 ? void 0 : _b.bind(context),
+                fail: (_c = context.fail) === null || _c === void 0 ? void 0 : _c.bind(context),
                 callback: callback,
             };
             context.done =
@@ -233,7 +233,7 @@ export default class SentryLambdaWrapper {
                 },
                 tags: {},
             };
-            const identity = ((_a = context.identity) === null || _a === void 0 ? void 0 : _a.constructor) === Object && Object.keys(context.identity).length > 0
+            const identity = ((_d = context.identity) === null || _d === void 0 ? void 0 : _d.constructor) === Object && Object.keys(context.identity).length > 0
                 ? context.identity
                 : event.requestContext
                     ? event.requestContext.identity
