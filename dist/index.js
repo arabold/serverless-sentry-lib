@@ -1,11 +1,24 @@
-let isSentryInstalled = false;
+"use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var isSentryInstalled = false;
 function installSentry(pluginConfig) {
     var _a, _b, _c;
-    const sentryClient = pluginConfig.sentryClient;
+    var sentryClient = pluginConfig.sentryClient;
     if (!sentryClient) {
         console.error("Sentry client not found.");
     }
-    const isLocalEnv = process.env.IS_OFFLINE || process.env.IS_LOCAL || !process.env.LAMBDA_TASK_ROOT;
+    var isLocalEnv = process.env.IS_OFFLINE || process.env.IS_LOCAL || !process.env.LAMBDA_TASK_ROOT;
     if (pluginConfig.filterLocal && isLocalEnv) {
         console.warn("Sentry disabled in local environment");
         delete process.env.SENTRY_DSN;
@@ -14,27 +27,27 @@ function installSentry(pluginConfig) {
         return;
     }
     if (pluginConfig.sourceMaps) {
-        const RewriteFramesExists = Array.isArray((_a = pluginConfig.init) === null || _a === void 0 ? void 0 : _a.integrations) && ((_b = pluginConfig.init) === null || _b === void 0 ? void 0 : _b.integrations.find((integration) => integration.name === "RewriteFrames"));
+        var RewriteFramesExists = Array.isArray((_a = pluginConfig.init) === null || _a === void 0 ? void 0 : _a.integrations) && ((_b = pluginConfig.init) === null || _b === void 0 ? void 0 : _b.integrations.find(function (integration) { return integration.name === "RewriteFrames"; }));
         if (!RewriteFramesExists) {
             pluginConfig.init = (_c = pluginConfig.init) !== null && _c !== void 0 ? _c : {};
             if (!Array.isArray(pluginConfig.init.integrations)) {
                 pluginConfig.init.integrations = [];
             }
-            const { RewriteFrames } = require("@sentry/integrations");
-            const path = require("path");
+            var RewriteFrames = require("@sentry/integrations").RewriteFrames;
+            var path_1 = require("path");
             pluginConfig.init.integrations.push(new RewriteFrames({
-                iteratee: (frame) => {
+                iteratee: function (frame) {
                     var _a;
                     if (((_a = frame.filename) === null || _a === void 0 ? void 0 : _a.startsWith("/")) && !frame.filename.includes("/node_modules/")) {
-                        frame.filename = "app:///" + path.basename(frame.filename);
+                        frame.filename = "app:///" + path_1.basename(frame.filename);
                     }
                     return frame;
                 },
             }));
         }
     }
-    sentryClient.init(Object.assign({ dsn: process.env.SENTRY_DSN, release: process.env.SENTRY_RELEASE, environment: isLocalEnv ? "Local" : process.env.SENTRY_ENVIRONMENT }, pluginConfig.init));
-    const tags = {
+    sentryClient.init(__assign({ dsn: process.env.SENTRY_DSN, release: process.env.SENTRY_RELEASE, environment: isLocalEnv ? "Local" : process.env.SENTRY_ENVIRONMENT }, pluginConfig.init));
+    var tags = {
         lambda: String(process.env.AWS_LAMBDA_FUNCTION_NAME),
         version: String(process.env.AWS_LAMBDA_FUNCTION_VERSION),
         memory_size: String(process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE),
@@ -48,23 +61,23 @@ function installSentry(pluginConfig) {
         tags.stage = process.env.SERVERLESS_STAGE;
     if (process.env.SERVERLESS_ALIAS)
         tags.alias = process.env.SERVERLESS_ALIAS;
-    sentryClient.configureScope((scope) => {
+    sentryClient.configureScope(function (scope) {
         var _a;
-        scope.setTags(Object.assign(Object.assign({}, tags), (_a = pluginConfig.scope) === null || _a === void 0 ? void 0 : _a.tags));
+        scope.setTags(__assign(__assign({}, tags), (_a = pluginConfig.scope) === null || _a === void 0 ? void 0 : _a.tags));
     });
     isSentryInstalled = true;
     console.log("Sentry installed.");
 }
-let memoryWatch;
-let timeoutWarning;
-let timeoutError;
+var memoryWatch;
+var timeoutWarning;
+var timeoutError;
 function installTimers(pluginConfig, lambdaContext) {
-    const timeRemaining = lambdaContext.getRemainingTimeInMillis();
-    const memoryLimit = Number(lambdaContext.memoryLimitInMB);
+    var timeRemaining = lambdaContext.getRemainingTimeInMillis();
+    var memoryLimit = Number(lambdaContext.memoryLimitInMB);
     function timeoutWarningFunc(cb) {
-        const Sentry = pluginConfig.sentryClient;
+        var Sentry = pluginConfig.sentryClient;
         if (isSentryInstalled) {
-            Sentry.withScope((scope) => {
+            Sentry.withScope(function (scope) {
                 scope.setLevel("warning");
                 scope.setExtras({
                     TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis(),
@@ -72,14 +85,14 @@ function installTimers(pluginConfig, lambdaContext) {
                 Sentry.captureMessage("Function Execution Time Warning");
             });
             Sentry.flush(5000)
-                .then(() => cb === null || cb === void 0 ? void 0 : cb())
+                .then(function () { return cb === null || cb === void 0 ? void 0 : cb(); })
                 .catch(null);
         }
     }
     function timeoutErrorFunc(cb) {
-        const Sentry = pluginConfig.sentryClient;
+        var Sentry = pluginConfig.sentryClient;
         if (isSentryInstalled) {
-            Sentry.withScope((scope) => {
+            Sentry.withScope(function (scope) {
                 scope.setLevel("error");
                 scope.setExtras({
                     TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis(),
@@ -87,26 +100,26 @@ function installTimers(pluginConfig, lambdaContext) {
                 Sentry.captureMessage("Function Timed Out");
             });
             Sentry.flush(5000)
-                .then(() => cb === null || cb === void 0 ? void 0 : cb())
+                .then(function () { return cb === null || cb === void 0 ? void 0 : cb(); })
                 .catch(null);
         }
     }
     function memoryWatchFunc(cb) {
-        const used = process.memoryUsage().rss / 1048576;
-        const p = used / memoryLimit;
+        var used = process.memoryUsage().rss / 1048576;
+        var p = used / memoryLimit;
         if (p >= 0.75) {
-            const Sentry = pluginConfig.sentryClient;
+            var Sentry_1 = pluginConfig.sentryClient;
             if (isSentryInstalled) {
-                Sentry.withScope((scope) => {
+                Sentry_1.withScope(function (scope) {
                     scope.setLevel("warning");
                     scope.setExtras({
                         MemoryLimitInMB: memoryLimit,
                         MemoryUsedInMB: Math.floor(used),
                     });
-                    Sentry.captureMessage("Low Memory Warning");
+                    Sentry_1.captureMessage("Low Memory Warning");
                 });
-                Sentry.flush(5000)
-                    .then(() => cb === null || cb === void 0 ? void 0 : cb())
+                Sentry_1.flush(5000)
+                    .then(function () { return cb === null || cb === void 0 ? void 0 : cb(); })
                     .catch(null);
             }
         }
@@ -137,13 +150,13 @@ function clearTimers() {
     }
 }
 function wrapCallback(pluginConfig, cb) {
-    return (err, data) => {
+    return function (err, data) {
         clearTimers();
         if (err && err !== "__emptyFailParamBackCompat" && pluginConfig.captureErrors && isSentryInstalled) {
-            const Sentry = pluginConfig.sentryClient;
-            Sentry.captureException(err);
-            Sentry.flush(5000)
-                .then(() => cb(err))
+            var Sentry_2 = pluginConfig.sentryClient;
+            Sentry_2.captureException(err);
+            Sentry_2.flush(5000)
+                .then(function () { return cb(err); })
                 .catch(null);
             return;
         }
@@ -156,7 +169,7 @@ function wrapCallback(pluginConfig, cb) {
     };
 }
 function parseBoolean(value, defaultValue) {
-    const v = String(value).trim().toLowerCase();
+    var v = String(value).trim().toLowerCase();
     if (["true", "t", "1", "yes", "y"].includes(v)) {
         return true;
     }
@@ -170,19 +183,21 @@ function parseBoolean(value, defaultValue) {
 function isSentryInstance(value) {
     return typeof (value === null || value === void 0 ? void 0 : value.captureException) === "function" && typeof (value === null || value === void 0 ? void 0 : value.captureMessage) === "function";
 }
-export default class SentryLambdaWrapper {
-    static handler(pluginConfigOrSentry, handler) {
+var SentryLambdaWrapper = (function () {
+    function SentryLambdaWrapper() {
+    }
+    SentryLambdaWrapper.handler = function (pluginConfigOrSentry, handler) {
         var _a, _b, _c;
-        let pluginConfig;
+        var pluginConfig;
         if (isSentryInstance(pluginConfigOrSentry)) {
             pluginConfig = {
                 sentryClient: pluginConfigOrSentry,
             };
         }
         else {
-            pluginConfig = Object.assign(Object.assign({}, pluginConfigOrSentry), { init: Object.assign({}, pluginConfigOrSentry === null || pluginConfigOrSentry === void 0 ? void 0 : pluginConfigOrSentry.init), scope: Object.assign(Object.assign({}, pluginConfigOrSentry === null || pluginConfigOrSentry === void 0 ? void 0 : pluginConfigOrSentry.scope), { tags: Object.assign({}, (_a = pluginConfigOrSentry === null || pluginConfigOrSentry === void 0 ? void 0 : pluginConfigOrSentry.scope) === null || _a === void 0 ? void 0 : _a.tags), extras: Object.assign({}, (_b = pluginConfigOrSentry === null || pluginConfigOrSentry === void 0 ? void 0 : pluginConfigOrSentry.scope) === null || _b === void 0 ? void 0 : _b.extras), user: Object.assign({}, (_c = pluginConfigOrSentry === null || pluginConfigOrSentry === void 0 ? void 0 : pluginConfigOrSentry.scope) === null || _c === void 0 ? void 0 : _c.user) }) });
+            pluginConfig = __assign(__assign({}, pluginConfigOrSentry), { init: __assign({}, pluginConfigOrSentry === null || pluginConfigOrSentry === void 0 ? void 0 : pluginConfigOrSentry.init), scope: __assign(__assign({}, pluginConfigOrSentry === null || pluginConfigOrSentry === void 0 ? void 0 : pluginConfigOrSentry.scope), { tags: __assign({}, (_a = pluginConfigOrSentry === null || pluginConfigOrSentry === void 0 ? void 0 : pluginConfigOrSentry.scope) === null || _a === void 0 ? void 0 : _a.tags), extras: __assign({}, (_b = pluginConfigOrSentry === null || pluginConfigOrSentry === void 0 ? void 0 : pluginConfigOrSentry.scope) === null || _b === void 0 ? void 0 : _b.extras), user: __assign({}, (_c = pluginConfigOrSentry === null || pluginConfigOrSentry === void 0 ? void 0 : pluginConfigOrSentry.scope) === null || _c === void 0 ? void 0 : _c.user) }) });
         }
-        const pluginConfigDefaults = {
+        var pluginConfigDefaults = {
             init: {},
             scope: { tags: {}, extras: {}, user: {} },
             captureErrors: parseBoolean(process.env.SENTRY_CAPTURE_ERRORS, true),
@@ -200,12 +215,12 @@ export default class SentryLambdaWrapper {
         if (process.env.SENTRY_DSN && !isSentryInstalled) {
             installSentry(pluginConfig);
         }
-        return (event, context, callback) => {
+        return function (event, context, callback) {
             var _a, _b, _c, _d;
             if (!isSentryInstalled) {
                 return handler(event, context, callback);
             }
-            const originalCallbacks = {
+            var originalCallbacks = {
                 done: (_a = context.done) === null || _a === void 0 ? void 0 : _a.bind(context),
                 succeed: (_b = context.succeed) === null || _b === void 0 ? void 0 : _b.bind(context),
                 fail: (_c = context.fail) === null || _c === void 0 ? void 0 : _c.bind(context),
@@ -221,19 +236,19 @@ export default class SentryLambdaWrapper {
                     : originalCallbacks.fail;
             context.succeed =
                 typeof originalCallbacks.succeed === "function"
-                    ? wrapCallback(pluginConfig, (err, result) => originalCallbacks.succeed(result)).bind(null, null)
+                    ? wrapCallback(pluginConfig, function (err, result) { return originalCallbacks.succeed(result); }).bind(null, null)
                     : originalCallbacks.succeed;
             callback = originalCallbacks.callback
                 ? wrapCallback(pluginConfig, originalCallbacks.callback)
                 : originalCallbacks.callback;
-            const sentryScope = {
+            var sentryScope = {
                 extras: {
                     Event: event,
                     Context: context,
                 },
                 tags: {},
             };
-            const identity = ((_d = context.identity) === null || _d === void 0 ? void 0 : _d.constructor) === Object && Object.keys(context.identity).length > 0
+            var identity = ((_d = context.identity) === null || _d === void 0 ? void 0 : _d.constructor) === Object && Object.keys(context.identity).length > 0
                 ? context.identity
                 : event.requestContext
                     ? event.requestContext.identity
@@ -249,14 +264,14 @@ export default class SentryLambdaWrapper {
                 };
             }
             if (event.requestContext) {
-                sentryScope.tags = Object.assign(Object.assign({}, sentryScope.tags), { api_id: event.requestContext.apiId, api_stage: event.requestContext.stage, http_method: event.requestContext.httpMethod });
+                sentryScope.tags = __assign(__assign({}, sentryScope.tags), { api_id: event.requestContext.apiId, api_stage: event.requestContext.stage, http_method: event.requestContext.httpMethod });
             }
-            const captureUnhandled = wrapCallback(pluginConfig, (err) => {
+            var captureUnhandled = wrapCallback(pluginConfig, function (err) {
                 err._sentryHandled = true;
                 throw err;
             });
-            const Sentry = pluginConfig.sentryClient;
-            Sentry.configureScope((scope) => {
+            var Sentry = pluginConfig.sentryClient;
+            Sentry.configureScope(function (scope) {
                 sentryScope.user && scope.setUser(sentryScope.user);
                 sentryScope.extras && scope.setExtras(sentryScope.extras);
                 sentryScope.tags && scope.setTags(sentryScope.tags);
@@ -264,26 +279,30 @@ export default class SentryLambdaWrapper {
             installTimers(pluginConfig, context);
             try {
                 if (pluginConfig.autoBreadcrumbs) {
-                    const breadcrumb = {
+                    var breadcrumb = {
                         message: process.env.AWS_LAMBDA_FUNCTION_NAME,
                         category: "lambda",
                         level: "info",
                         data: {},
                     };
                     if (event.requestContext) {
-                        breadcrumb.data = Object.assign(Object.assign({}, breadcrumb.data), { http_method: event.requestContext && event.requestContext.httpMethod, host: event.headers && event.headers.Host, path: event.path, user_agent: event.headers && event.headers["User-Agent"] });
+                        breadcrumb.data = __assign(__assign({}, breadcrumb.data), { http_method: event.requestContext && event.requestContext.httpMethod, host: event.headers && event.headers.Host, path: event.path, user_agent: event.headers && event.headers["User-Agent"] });
                     }
-                    const sentryClient = pluginConfig.sentryClient;
+                    var sentryClient = pluginConfig.sentryClient;
                     sentryClient.addBreadcrumb(breadcrumb);
                 }
-                const promise = handler(event, context, callback);
+                var promise = handler(event, context, callback);
                 if (promise && typeof promise.then === "function") {
                     return promise
-                        .then((...data) => {
+                        .then(function () {
+                        var data = [];
+                        for (var _i = 0; _i < arguments.length; _i++) {
+                            data[_i] = arguments[_i];
+                        }
                         clearTimers();
-                        return Promise.resolve(...data);
+                        return Promise.resolve.apply(Promise, data);
                     })
-                        .catch((err) => {
+                        .catch(function (err) {
                         clearTimers();
                         return Promise.reject(err);
                     });
@@ -294,5 +313,7 @@ export default class SentryLambdaWrapper {
                 captureUnhandled(err);
             }
         };
-    }
-}
+    };
+    return SentryLambdaWrapper;
+}());
+exports.default = SentryLambdaWrapper;
