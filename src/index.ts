@@ -163,7 +163,7 @@ function installTimers(pluginConfig: PluginConfig, lambdaContext: Context) {
         });
         Sentry.captureMessage("Function Execution Time Warning");
       });
-      Sentry.flush(5000)
+      Sentry.flush(2000)
         .then(() => cb?.())
         .catch(null);
     }
@@ -179,7 +179,7 @@ function installTimers(pluginConfig: PluginConfig, lambdaContext: Context) {
         });
         Sentry.captureMessage("Function Timed Out");
       });
-      Sentry.flush(5000)
+      Sentry.flush(2000)
         .then(() => cb?.())
         .catch(null);
     }
@@ -199,7 +199,7 @@ function installTimers(pluginConfig: PluginConfig, lambdaContext: Context) {
           });
           Sentry.captureMessage("Low Memory Warning");
         });
-        Sentry.flush(5000)
+        Sentry.flush(2000)
           .then(() => cb?.())
           .catch(null);
       }
@@ -256,7 +256,10 @@ function wrapCallback<T>(pluginConfig: PluginConfig, cb: Callback<T>): Callback<
     if (err && err !== "__emptyFailParamBackCompat" && pluginConfig.captureErrors && isSentryInstalled) {
       const Sentry = pluginConfig.sentryClient;
       Sentry.captureException(err);
-      Sentry.flush(5000)
+
+      // After a call to close, the current client cannot be used anymore.
+      // It’s important to only call close immediately before shutting down the application.
+      Sentry.close(2000)
         .then(() => cb(err))
         .catch(null);
       return;
@@ -503,16 +506,19 @@ export function withSentry<TEvent = any, TResult = any>(
         return promise
           .then((...data) => {
             clearTimers();
-            return Promise.resolve(...data); // eslint-disable-line promise/no-return-wrap
+            // eslint-disable-next-line promise/no-nesting
+            return Sentry.close(2000).then(() => Promise.resolve(...data));
           })
           .catch((err) => {
             clearTimers();
-            return Promise.reject(err); // eslint-disable-line promise/no-return-wrap
+            // eslint-disable-next-line promise/no-nesting
+            return Sentry.close(2000).then(() => Promise.reject(err));
           });
+      } else {
+        // Returning non-Promise values would be meaningless for lambda.
+        // But inherit the behavior of the original handler.
+        return promise;
       }
-      // Returning non-Promise values would be meaningless for lambda.
-      // But inherit the behavior of the original handler.
-      return promise;
     } catch (err) {
       // Catch and log synchronous exceptions thrown by the handler
       captureUnhandled(err);

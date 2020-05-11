@@ -117,7 +117,7 @@ function installTimers(pluginConfig, lambdaContext) {
                 });
                 Sentry.captureMessage("Function Execution Time Warning");
             });
-            Sentry.flush(5000)
+            Sentry.flush(2000)
                 .then(function () { return cb === null || cb === void 0 ? void 0 : cb(); })
                 .catch(null);
         }
@@ -132,7 +132,7 @@ function installTimers(pluginConfig, lambdaContext) {
                 });
                 Sentry.captureMessage("Function Timed Out");
             });
-            Sentry.flush(5000)
+            Sentry.flush(2000)
                 .then(function () { return cb === null || cb === void 0 ? void 0 : cb(); })
                 .catch(null);
         }
@@ -151,7 +151,7 @@ function installTimers(pluginConfig, lambdaContext) {
                     });
                     Sentry_1.captureMessage("Low Memory Warning");
                 });
-                Sentry_1.flush(5000)
+                Sentry_1.flush(2000)
                     .then(function () { return cb === null || cb === void 0 ? void 0 : cb(); })
                     .catch(null);
             }
@@ -204,7 +204,9 @@ function wrapCallback(pluginConfig, cb) {
         if (err && err !== "__emptyFailParamBackCompat" && pluginConfig.captureErrors && isSentryInstalled) {
             var Sentry_2 = pluginConfig.sentryClient;
             Sentry_2.captureException(err);
-            Sentry_2.flush(5000)
+            // After a call to close, the current client cannot be used anymore.
+            // It’s important to only call close immediately before shutting down the application.
+            Sentry_2.close(2000)
                 .then(function () { return cb(err); })
                 .catch(null);
             return;
@@ -387,16 +389,20 @@ function withSentry(arg1, arg2) {
                         data[_i] = arguments[_i];
                     }
                     clearTimers();
-                    return Promise.resolve.apply(Promise, data); // eslint-disable-line promise/no-return-wrap
+                    // eslint-disable-next-line promise/no-nesting
+                    return Sentry.close(2000).then(function () { return Promise.resolve.apply(Promise, data); });
                 })
                     .catch(function (err) {
                     clearTimers();
-                    return Promise.reject(err); // eslint-disable-line promise/no-return-wrap
+                    // eslint-disable-next-line promise/no-nesting
+                    return Sentry.close(2000).then(function () { return Promise.reject(err); });
                 });
             }
-            // Returning non-Promise values would be meaningless for lambda.
-            // But inherit the behavior of the original handler.
-            return promise;
+            else {
+                // Returning non-Promise values would be meaningless for lambda.
+                // But inherit the behavior of the original handler.
+                return promise;
+            }
         }
         catch (err) {
             // Catch and log synchronous exceptions thrown by the handler

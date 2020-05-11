@@ -31,11 +31,13 @@ const SentryMock: typeof Sentry = {
   withScope: (fn: (data: any) => void) => {
     fn(ScopeMock);
   },
-  getCurrentHub: () =>
-    ({
+  getCurrentHub: () => {
+    return {
       getClient: () => ({ flush: () => Promise.resolve() }),
-    } as any),
+    } as any;
+  },
   flush: () => Promise.resolve(true),
+  close: () => Promise.resolve(true),
 } as any;
 
 describe("SentryLambdaWrapper", () => {
