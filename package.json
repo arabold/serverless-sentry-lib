@@ -23,8 +23,9 @@
     "test": "mocha src/*.test.ts --require ts-node/register"
   },
   "files": [
-    "dist/*",
-    "src/*"
+    "dist",
+    "package.json",
+    "README.md"
   ],
   "keywords": [
     "serverless plugin sentry",

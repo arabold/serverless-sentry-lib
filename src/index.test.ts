@@ -5,7 +5,7 @@ import * as chaiAsPromised from "chai-as-promised";
 import * as sinon from "sinon";
 import * as sinonChai from "sinon-chai";
 
-import SentryLambdaWrapper from "./index";
+import withSentry from "./index";
 
 const expect = chai.expect;
 chai.use(chaiAsPromised);
@@ -76,7 +76,7 @@ describe("SentryLambdaWrapper", () => {
           });
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         sandbox.stub(mockContext, "succeed").callsFake((result: any) => {
           expect(result).to.have.property("message").that.is.a("string");
           done();
@@ -90,7 +90,7 @@ describe("SentryLambdaWrapper", () => {
           context.fail(new Error("Test Error"));
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         sandbox.stub(mockContext, "fail").callsFake((err: any) => {
           expect(err).to.be.an("error").with.property("message", "Test Error");
           done();
@@ -107,7 +107,7 @@ describe("SentryLambdaWrapper", () => {
           });
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler as any);
+        const wrappedHandler = withSentry(SentryMock, handler as any);
         sandbox.stub(mockContext, "done").callsFake((err: any, result: any) => {
           expect(err).to.be.null;
           expect(result).to.have.property("message").that.is.a("string");
@@ -122,7 +122,7 @@ describe("SentryLambdaWrapper", () => {
           context.done(new Error("Test Error"));
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         sandbox.stub(mockContext, "done").callsFake((err: any, result: any) => {
           expect(err).to.be.an("error").with.property("message", "Test Error");
           done();
@@ -145,7 +145,7 @@ describe("SentryLambdaWrapper", () => {
           });
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         const callback = (err: any, result: any) => {
           expect(err).to.be.null;
           expect(result).to.have.property("message").that.is.a("string");
@@ -160,7 +160,7 @@ describe("SentryLambdaWrapper", () => {
           callback(new Error("Test Error"));
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         const callback = (err: any) => {
           expect(err).to.be.an("error").with.property("message", "Test Error");
           done();
@@ -179,7 +179,7 @@ describe("SentryLambdaWrapper", () => {
           });
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.fulfilled.then(
           (result) => {
             expect(result).to.have.property("message").that.is.a("string");
@@ -193,7 +193,7 @@ describe("SentryLambdaWrapper", () => {
           return Promise.reject(new Error("Test Error"));
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error");
       });
     });
@@ -218,7 +218,7 @@ describe("SentryLambdaWrapper", () => {
           });
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         sandbox.stub(mockContext, "succeed").callsFake((result: any) => {
           expect(result).to.have.property("message").that.is.a("string");
           done();
@@ -232,7 +232,7 @@ describe("SentryLambdaWrapper", () => {
           context.fail(new Error("Test Error"));
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         sandbox.stub(mockContext, "fail").callsFake((err: any) => {
           expect(err).to.be.an("error").with.property("message", "Test Error");
           done();
@@ -252,7 +252,7 @@ describe("SentryLambdaWrapper", () => {
           });
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         sandbox.stub(mockContext, "done").callsFake((err: any, result: any) => {
           expect(err).to.be.undefined;
           expect(result).to.have.property("message").that.is.a("string");
@@ -267,7 +267,7 @@ describe("SentryLambdaWrapper", () => {
           context.done(new Error("Test Error"));
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         sandbox.stub(mockContext, "done").callsFake((err: any, result: any) => {
           expect(err).to.be.an("error").with.property("message", "Test Error");
           done();
@@ -281,7 +281,7 @@ describe("SentryLambdaWrapper", () => {
           context.fail(new Error("Test Error"));
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         const spy = sandbox.spy(SentryMock, "captureException");
         sandbox.stub(mockContext, "fail").callsFake((err: any) => {
           expect(spy).to.be.calledOnce;
@@ -297,7 +297,7 @@ describe("SentryLambdaWrapper", () => {
           context.done(new Error("Test Error"));
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         const spy = sandbox.spy(SentryMock, "captureException");
         sandbox.stub(mockContext, "done").callsFake((err: any) => {
           expect(spy).to.be.calledOnce;
@@ -322,7 +322,7 @@ describe("SentryLambdaWrapper", () => {
           });
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         const callback = (err: any, result: any) => {
           expect(err).to.be.null;
           expect(result).to.have.property("message").that.is.a("string");
@@ -337,7 +337,7 @@ describe("SentryLambdaWrapper", () => {
           callback(new Error("Test Error"));
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         const callback = (err: any) => {
           expect(err).to.be.an("error").with.property("message", "Test Error");
           done();
@@ -351,7 +351,7 @@ describe("SentryLambdaWrapper", () => {
           callback(new Error("Test Error"));
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         const spy = sandbox.spy(SentryMock, "captureException");
         const callback = (err: any) => {
           expect(spy).to.be.calledOnce;
@@ -372,7 +372,7 @@ describe("SentryLambdaWrapper", () => {
           });
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.fulfilled.then(
           (result) => {
             expect(result).to.have.property("message").that.is.a("string");
@@ -386,7 +386,7 @@ describe("SentryLambdaWrapper", () => {
           return Promise.reject(new Error("Test Error"));
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error");
       });
     });
@@ -403,7 +403,7 @@ describe("SentryLambdaWrapper", () => {
           });
         };
 
-        const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+        const wrappedHandler = withSentry(SentryMock, handler);
         return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled;
       });
     });
@@ -424,7 +424,7 @@ describe("SentryLambdaWrapper", () => {
       describe("autoBreadcrumbs", () => {
         it("should trace Lambda function as breadcrumb", (done) => {
           const spy = sandbox.spy(SentryMock, "addBreadcrumb");
-          const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+          const wrappedHandler = withSentry(SentryMock, handler);
           const callback = (err: any, result: any) => {
             expect(spy).to.be.calledOnce;
             expect(spy).to.be.calledWith({
@@ -497,7 +497,7 @@ describe("SentryLambdaWrapper", () => {
           const spy = sandbox.spy(SentryMock, "captureMessage");
           const spyScopeSetLevel = sandbox.spy(ScopeMock, "setLevel");
           const spyScopeSetExtras = sandbox.spy(ScopeMock, "setExtras");
-          const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+          const wrappedHandler = withSentry(SentryMock, handler);
           return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then((result) => {
             expect(spy).to.be.calledWith("Function Execution Time Warning");
             expect(spyScopeSetLevel).to.be.calledWith("warning");
@@ -515,7 +515,7 @@ describe("SentryLambdaWrapper", () => {
           const spy = sandbox.spy(SentryMock, "captureMessage");
           const spyScopeSetLevel = sandbox.spy(ScopeMock, "setLevel");
           const spyScopeSetExtras = sandbox.spy(ScopeMock, "setExtras");
-          const wrappedHandler = SentryLambdaWrapper.handler(SentryMock, handler);
+          const wrappedHandler = withSentry(SentryMock, handler);
           return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then((result) => {
             expect(spy).to.be.calledWith("Function Timed Out");
             expect(spyScopeSetLevel).to.be.calledWith("error");

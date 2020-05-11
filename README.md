@@ -102,12 +102,12 @@ In addition the library checks for the following optional variables and adds the
 ## Usage
 
 For maximum flexibility this library is implemented as a wrapper around your original AWS Lambda handler code (your `handler.js` or similar). The
-`SentryLambdaWrapper` adds error and exception handling, and takes care of configuring the Sentry client automatically.
+`withSentry` adds error and exception handling, and takes care of configuring the Sentry client automatically.
 
-The `SentryLambdaWrapper` is pre-configured to reasonable defaults and doesn't need much setup. Simply pass in your Sentry client to the wrapper
+`withSentry` is pre-configured to reasonable defaults and doesn't need much setup. Simply pass in your Sentry client to the wrapper
 function as shown below - that's it. Passing in your own `Sentry` client is necessary to ensure that the wrapper uses the same environment as the rest of your code. In the rare circumstances that this isn't desired, you can pass in `null` instead.
 
-**ES2015: Original Lambda Handler Code Before Adding SentryLambdaWrapper**:
+**ES2015: Original Lambda Handler Code Before Adding `withSentry`**:
 
 ```js
 "use strict";
@@ -117,21 +117,21 @@ module.exports.hello = function (event, context, callback) {
 };
 ```
 
-**ES2015: New Lambda Handler Code With SentryLambdaWrapper For Sentry Reporting**
+**ES2015: New Lambda Handler Code Using `withSentry` For Sentry Reporting**
 
 ```js
 "use strict";
 
 const Sentry = require("@sentry/node"); // Official `Unified Node.js SDK` module
-const SentryLambdaWrapper = require("serverless-sentry-lib"); // This helper library
+const withSentry = require("serverless-sentry-lib"); // This helper library
 
-module.exports.hello = SentryLambdaWrapper.handler(Sentry, (event, context, callback) => {
+module.exports.hello = withSentry(Sentry, (event, context, callback) => {
   // Here follows your original Lambda handler code...
   callback(null, { message: "Go Serverless! Your function executed successfully!", event });
 });
 ```
 
-**ES2017: Original Lambda Handler Code Before Adding SentryLambdaWrapper**:
+**ES2017: Original Lambda Handler Code Before Adding `withSentry`**:
 
 ```js
 exports.handler = async (event, context) => {
@@ -139,23 +139,23 @@ exports.handler = async (event, context) => {
 };
 ```
 
-**ES2017: New Lambda Handler Code With SentryLambdaWrapper For Sentry Reporting**
+**ES2017: New Lambda Handler Code Using `withSentry` For Sentry Reporting**
 
 ```js
 const Sentry = require("@sentry/node"); // Official `Unified Node.js SDK` module
-const SentryLambdaWrapper = require("serverless-sentry-lib"); // This helper library
+const withSentry = require("serverless-sentry-lib"); // This helper library
 
-exports.handler = SentryLambdaWrapper.handler(Sentry, async (event, context) => {
+exports.handler = withSentry(Sentry, async (event, context) => {
   // Here follows your original Lambda handler code...
   return { message: "Go Serverless! Your function executed successfully!", event };
 });
 ```
 
-Once your Lambda handler code is wrapped in the `SentryLambdaWrapper`, it will be extended it with automatic error reporting. Whenever your Lambda handler sets an error response, the error is forwarded to Sentry with additional context information.
+Once your Lambda handler code is wrapped in `withSentry`, it will be extended it with automatic error reporting. Whenever your Lambda handler sets an error response, the error is forwarded to Sentry with additional context information.
 
 ### Setting Custom Configuration Options
 
-As shown above you can use environment variables to control the Sentry integration. In some scenarios in which environment variables are not desired or in which custom logic needs to be executed, you can also pass in configuration options to the `SentryLambdaWrapper` directly:
+As shown above you can use environment variables to control the Sentry integration. In some scenarios in which environment variables are not desired or in which custom logic needs to be executed, you can also pass in configuration options to `withSentry` directly:
 
 - `sentryClient` - Your Sentry client. Don't forget to set this if you send your
   own custom messages and exceptions to Sentry later in your code.
@@ -169,7 +169,7 @@ As shown above you can use environment variables to control the Sentry integrati
 - `sourceMaps` - activate Integration RewriteFrames to allow to use uploaded sourcemaps with AWS Lambda (defaults to `false`)
 
 ```js
-const SentryLambdaWrapper = require("serverless-sentry-lib");
+const withSentry = require("serverless-sentry-lib");
 
 // Wrap handler for automated error and exception logging
 const sentryConfig = {
@@ -185,7 +185,7 @@ const sentryConfig = {
   },
   sentryClient: require("@sentry/node"), // don't forget!
 };
-module.exports.handler = SentryLambdaWrapper.handler(sentryConfig, (event, context, callback) => {
+module.exports.handler = withSentry(sentryConfig, (event, context, callback) => {
   // your Lambda Functions Handler code goes here...
   Sentry.captureMessage("Hello from Lambda!", { level: "info " });
 });
@@ -222,13 +222,13 @@ Only one low memory warning will be generated per function invocation. You might
 
 ### Turn Sentry Reporting On/Off
 
-Obviously Sentry reporting is only enabled if you wrap your code using the `SentryLambdaWrapper` as shown in the examples above. In addition, error
+Obviously Sentry reporting is only enabled if you wrap your code using `withSentry` as shown in the examples above. In addition, error
 reporting is only active if the `SENTRY_DSN` environment variable is set. This is an easy way to enable or disable reporting as a whole or for specific functions.
 
-In some cases it might be desirable to disable only error reporting itself but keep the advanced features such as timeout and low memory warnings in place. This can be achieved via setting the respective options in the environment variables or the `SentryLambdaWrapper` during initialization:
+In some cases it might be desirable to disable only error reporting itself but keep the advanced features such as timeout and low memory warnings in place. This can be achieved via setting the respective options in the environment variables or `withSentry` during initialization:
 
 ```js
-const SentryLambdaWrapper = require("serverless-sentry-lib");
+const withSentry = require("serverless-sentry-lib");
 
 // Wrap handler for automated error and exception logging
 const sentryConfig = {
@@ -238,7 +238,7 @@ const sentryConfig = {
   captureTimeoutWarnings: true, // and timeout warnings enabled.
   sentryClient: require("@sentry/node"),
 };
-module.exports.handler = SentryLambdaWrapper.handler(sentryConfig, (event, context, callback) => {
+module.exports.handler = withSentry(sentryConfig, (event, context, callback) => {
   // your Lambda Functions Handler code goes here...
 });
 ```
@@ -249,9 +249,9 @@ module.exports.handler = SentryLambdaWrapper.handler(sentryConfig, (event, conte
 
 - Rewrite using TypeScript. The use of TypeScript in your project is fully optional, but if you do, we got you covered!
 - Dropped support for Node.js 6 and 8. The only supported versions are Node.js 10 and 12.
-- Upgrade from sentry SDK `raven` to new _Unified Node.js SDK_ [`@sentry/node`](https://docs.sentry.io/error-reporting/configuration/?platform=node)
-- ⚠️ _ravenClient_ is now _sentryClient_
-- ⚠️ remove global _sls_sentry_ for backward compatibility with oldserverless-sentry-plugin 0.2.x/0.3.x
+- Upgrade from sentry SDK `raven` to new _Unified Node.js SDK_ [`@sentry/node`](https://docs.sentry.io/error-reporting/configuration/?platform=node).
+- Simplified integration using `withSentry` higher order function.
+- ⚠️ remove global _sls_sentry_ for backward compatibility with oldserverless-sentry-plugin 0.2.x/0.3.x.
 - Thank you [@aheissenberger](https://github.com/aheissenberger) and [@Vadorequest](https://github.com/Vadorequest) for their contributions to this release! 🤗
 
 ### 1.1.2
