@@ -1,15 +1,22 @@
-import * as Sentry from "@sentry/node";
-import { Callback, Context } from "aws-lambda";
-export declare type Handler<TEvent = any, TResult = any> = (event: TEvent, context: Context, callback?: Callback<TResult>) => void | Promise<TResult>;
-export declare type PluginConfig = {
-    filterLocal?: boolean;
-    sourceMaps?: boolean;
-    autoBreadcrumbs?: boolean;
-    captureErrors?: boolean;
-    captureUnhandledRejections?: boolean;
-    captureMemoryWarnings?: boolean;
-    captureTimeoutWarnings?: boolean;
-    init?: Sentry.NodeOptions;
+import * as SentryLib from "@sentry/node";
+import { Handler } from "aws-lambda";
+/**
+ * Serverless Sentry Lib Configuration
+ */
+export declare type WithSentryOptions = {
+    /**
+     * Use the given Sentry instance instead instead of importing it automatically
+     */
+    sentry?: typeof SentryLib;
+    /**
+     * Additional Sentry options.
+     * Only has an effect if no custom Sentry instance is used.
+     */
+    sentryOptions?: SentryLib.NodeOptions;
+    /**
+     * Custom scope settings
+     * Only has an effect if no custom Sentry instance is used.
+     */
     scope?: {
         tags?: {
             [key: string]: string;
@@ -17,10 +24,55 @@ export declare type PluginConfig = {
         extras?: {
             [key: string]: any;
         };
-        user?: Sentry.User | null;
+        user?: SentryLib.User | null;
     };
-    sentryClient: typeof Sentry;
+    /**
+     * Don't report errors from local environments (defaults to `true`).
+     * Only has an effect if no custom Sentry instance is used.
+     */
+    filterLocal?: boolean;
+    /**
+     * Enable source maps (defaults to `false`).
+     * Only has an effect if no custom Sentry instance is used.
+     */
+    sourceMaps?: boolean;
+    /** Automatically create breadcrumbs (see Sentry SDK docs, default to `true`) */
+    autoBreadcrumbs?: boolean;
+    /** Capture Lambda errors (defaults to `true`) */
+    captureErrors?: boolean;
+    /** Capture unhandled Promise rejections (defaults to `true`) */
+    captureUnhandledRejections?: boolean;
+    /** Capture uncaught exceptions (defaults to `true`) */
+    captureUncaughtException?: boolean;
+    /** Monitor memory usage (defaults to `true`) */
+    captureMemoryWarnings?: boolean;
+    /** Monitor execution timeouts (defaults to `true`) */
+    captureTimeoutWarnings?: boolean;
 };
-export default class SentryLambdaWrapper {
-    static handler(pluginConfigOrSentry: PluginConfig | typeof Sentry, handler: Handler<any, any>): Handler<any, any>;
-}
+/**
+ * Higher Order Function to Wrap a Lambda Functions Handler
+ *
+ * @see http://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-handler.html
+ * @param handler - Original Lambda function handler
+ * @returns Wrapped Lambda function handler with Sentry instrumentation
+ */
+export declare function withSentry<TEvent = any, TResult = any>(handler: Handler<TEvent, TResult>): Handler<TEvent, TResult>;
+/**
+ * Higher Order Function to Wrap a Lambda Functions Handler
+ *
+ * @see http://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-handler.html
+ * @param pluginConfig - Plugin configuration
+ * @param handler - Original Lambda function handler
+ * @returns Wrapped Lambda function handler with Sentry instrumentation
+ */
+export declare function withSentry<TEvent = any, TResult = any>(pluginConfig: WithSentryOptions, handler: Handler<TEvent, TResult>): Handler<TEvent, TResult>;
+/**
+ * Higher Order Function to Wrap a Lambda Functions Handler
+ *
+ * @see http://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-handler.html
+ * @param SentryInstance - Sentry client
+ * @param handler - Original Lambda function handler
+ * @returns Wrapped Lambda function handler with Sentry instrumentation
+ */
+export declare function withSentry<TEvent = any, TResult = any>(SentryInstance: typeof SentryLib, handler: Handler<TEvent, TResult>): Handler<TEvent, TResult>;
+export default withSentry;
