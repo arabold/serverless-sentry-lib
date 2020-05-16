@@ -1,11 +1,10 @@
 import * as Sentry from "@sentry/node";
-import { Context } from "aws-lambda";
+import { Callback, Context, Handler } from "aws-lambda";
 import * as chai from "chai";
 import * as chaiAsPromised from "chai-as-promised";
-import * as sinon from "sinon";
+import * as proxyquire from "proxyquire";
+import Sinon, * as sinon from "sinon";
 import * as sinonChai from "sinon-chai";
-
-import withSentry from "./index";
 
 const expect = chai.expect;
 chai.use(chaiAsPromised);
@@ -13,34 +12,39 @@ chai.use(sinonChai);
 
 const sandbox = sinon.createSandbox();
 
-const ScopeMock = {
-  setLevel: (level: Sentry.Severity) => {},
-  setExtras: (extras: { [key: string]: any }) => {},
-  setUser: (user: Sentry.User | null) => {},
-  setTag: (key: string, value: string) => {},
-  setTags: (tags: { [key: string]: string }) => {},
+const mockScope = {
+  setLevel: sandbox.spy((level: Sentry.Severity) => {}),
+  setExtras: sandbox.spy((extras: { [key: string]: any }) => {}),
+  setUser: sandbox.spy((user: Sentry.User | null) => {}),
+  setTag: sandbox.spy((key: string, value: string) => {}),
+  setTags: sandbox.spy((tags: { [key: string]: string }) => {}),
 };
 
 /** Mock implementation of Sentry */
-const SentryMock: typeof Sentry = {
-  init: () => {},
-  addBreadcrumb: () => {},
-  captureMessage: (message: string, level?: Sentry.Severity | undefined) => "",
-  captureException: (exception: any) => "",
-  configureScope: (callback: (scope: Sentry.Scope) => void) => {},
-  withScope: (fn: (data: any) => void) => {
-    fn(ScopeMock);
-  },
-  getCurrentHub: () => {
+const mockSentry: typeof Sentry = {
+  init: sandbox.stub(),
+  addBreadcrumb: sandbox.stub(),
+  captureMessage: sandbox.spy((message: string, level?: Sentry.Severity | undefined) => ""),
+  captureException: sandbox.spy((exception: any) => ""),
+  configureScope: sandbox.spy((callback: (scope: Sentry.Scope) => void) => {}),
+  withScope: sandbox.spy((fn: (data: any) => void) => {
+    fn(mockScope);
+  }),
+  getCurrentHub: sandbox.spy(() => {
     return {
       getClient: () => ({ flush: () => Promise.resolve() }),
     } as any;
-  },
-  flush: () => Promise.resolve(true),
-  close: () => Promise.resolve(true),
+  }),
+  flush: sandbox.spy(() => Promise.resolve(true)),
+  close: sandbox.spy(() => Promise.resolve(true)),
 } as any;
 
-describe("SentryLambdaWrapper", () => {
+// Initialize withSentry using the mocked Sentry implementation
+const withSentry = proxyquire("./index", {
+  "@sentry/node": mockSentry,
+});
+
+describe("withSentry", () => {
   const mockEvent = {
     foo: "bar",
   };
@@ -56,478 +60,485 @@ describe("SentryLambdaWrapper", () => {
     logGroupName: "loggroup",
     logStreamName: "logstream",
 
-    done: () => {},
-    fail: () => {},
-    succeed: () => {},
+    done: () => {
+      throw new Error("deprecated");
+    },
+    fail: () => {
+      throw new Error("deprecated");
+    },
+    succeed: () => {
+      throw new Error("deprecated");
+    },
   };
 
+  beforeEach(() => {
+    process.env.AWS_LAMBDA_FUNCTION_NAME = "Test-Lambda-Function";
+    process.env.LAMBDA_TASK_ROOT = "/tmp/test";
+  });
+
   afterEach(() => {
-    sandbox.restore();
+    sandbox.resetHistory();
   });
 
   // ------------------------------------------------------------------------
 
-  describe("No Sentry installed", () => {
-    describe("Context Succeed/Fail/Done", () => {
-      it("should invoke context.succeed callback", (done) => {
-        /** Lambda function handler */
-        const handler = (event: any, context: Context) => {
-          context.succeed({
-            message: "Go Serverless! Your function executed successfully!",
-            event,
-          });
-        };
+  describe("Sentry DSN not set", () => {
+    before(() => {
+      delete process.env.SENTRY_DSN;
+      process.env.SENTRY_FILTER_LOCAL = "false";
+    });
 
-        const wrappedHandler = withSentry(SentryMock, handler);
-        sandbox.stub(mockContext, "succeed").callsFake((result: any) => {
-          expect(result).to.have.property("message").that.is.a("string");
-          done();
-        });
-        wrappedHandler(mockEvent, mockContext);
-      });
-
-      it("should invoke context.fail callback", (done) => {
-        /** Lambda function handler */
-        const handler = (event: any, context: { fail: (err: Error) => void }) => {
-          context.fail(new Error("Test Error"));
-        };
-
-        const wrappedHandler = withSentry(SentryMock, handler);
-        sandbox.stub(mockContext, "fail").callsFake((err: any) => {
-          expect(err).to.be.an("error").with.property("message", "Test Error");
-          done();
-        });
-        wrappedHandler(mockEvent, mockContext);
-      });
-
-      it("should invoke context.done callback with result", (done) => {
-        /** Lambda function handler */
-        const handler = (event: any, context: { done: (err: null, data: { message: string; event: any }) => void }) => {
-          context.done(null, {
-            message: "Go Serverless! Your function executed successfully!",
-            event,
-          });
-        };
-
-        const wrappedHandler = withSentry(SentryMock, handler as any);
-        sandbox.stub(mockContext, "done").callsFake((err: any, result: any) => {
-          expect(err).to.be.null;
-          expect(result).to.have.property("message").that.is.a("string");
-          done();
-        });
-        wrappedHandler(mockEvent, mockContext);
-      });
-
-      it("should invoke context.done callback with error", (done) => {
-        /** Lambda function handler */
-        const handler = (event: any, context: { done: (err: Error) => void }) => {
-          context.done(new Error("Test Error"));
-        };
-
-        const wrappedHandler = withSentry(SentryMock, handler);
-        sandbox.stub(mockContext, "done").callsFake((err: any, result: any) => {
-          expect(err).to.be.an("error").with.property("message", "Test Error");
-          done();
-        });
-        wrappedHandler(mockEvent, mockContext);
-      });
+    after(() => {
+      delete process.env.SENTRY_DSN;
+      delete process.env.SENTRY_FILTER_LOCAL;
     });
 
     describe("Callbacks", () => {
-      it("should invoke handler callback on success", (done) => {
+      it("should invoke callback with result", (done) => {
         /** Lambda function handler */
-        const handler = (
-          event: any,
-          context: any,
-          callback: (err: null, data: { message: string; event: any }) => void,
-        ) => {
+        const handler = withSentry((event: any, context: any, callback: Callback<any>) => {
           callback(null, {
             message: "Go Serverless! Your function executed successfully!",
             event,
           });
-        };
+        });
 
-        const wrappedHandler = withSentry(SentryMock, handler);
-        const callback = (err: any, result: any) => {
+        handler(mockEvent, mockContext, (err: Error, result: any) => {
+          expect(mockSentry.init).to.not.be.called;
+          expect(mockSentry.captureException).to.not.be.called;
           expect(err).to.be.null;
           expect(result).to.have.property("message").that.is.a("string");
           done();
-        };
-        wrappedHandler(mockEvent, mockContext, callback);
+        });
       });
 
-      it("should invoke handler callback on error", (done) => {
+      it("should invoke callback with error", (done) => {
         /** Lambda function handler */
-        const handler = (event: any, context: any, callback: (err: Error) => void) => {
+        const handler = withSentry((event: any, context: any, callback: Callback<any>) => {
           callback(new Error("Test Error"));
-        };
+        });
 
-        const wrappedHandler = withSentry(SentryMock, handler);
-        const callback = (err: any) => {
+        handler(mockEvent, mockContext, (err: Error, result: any) => {
+          expect(mockSentry.init).to.not.be.called;
+          expect(mockSentry.captureException).to.not.be.called;
           expect(err).to.be.an("error").with.property("message", "Test Error");
           done();
-        };
-        wrappedHandler(mockEvent, mockContext, callback);
+        });
       });
     });
 
     describe("Async/Await (Promises)", () => {
       it("should return fulfilled Promise", () => {
         /** Lambda function handler */
-        const handler = (event: any, context: any) => {
+        const handler = withSentry((event: any, context: any) => {
           return Promise.resolve({
             message: "Go Serverless! Your function executed successfully!",
             event,
           });
-        };
-
-        const wrappedHandler = withSentry(SentryMock, handler);
-        return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.fulfilled.then(
-          (result) => {
-            expect(result).to.have.property("message").that.is.a("string");
-          },
-        );
+        });
+        return expect(handler(mockEvent, mockContext, sinon.stub())).to.eventually.be.fulfilled.then((result) => {
+          expect(mockSentry.init).to.not.be.called;
+          expect(mockSentry.captureException).to.not.be.called;
+          expect(result).to.have.property("message").that.is.a("string");
+        });
       });
 
       it("should return rejected Promise", () => {
         /** Lambda function handler */
-        const handler = (event: any, context: any) => {
+        const handler = withSentry((event: any, context: any) => {
           return Promise.reject(new Error("Test Error"));
-        };
-
-        const wrappedHandler = withSentry(SentryMock, handler);
-        return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error");
+        });
+        return expect(handler(mockEvent, mockContext, sinon.stub()))
+          .to.eventually.be.rejectedWith("Test Error")
+          .then(() => {
+            expect(mockSentry.init).to.not.be.called;
+            expect(mockSentry.captureException).to.not.be.called;
+          });
       });
     });
   });
 
   // ------------------------------------------------------------------------
 
-  describe("Sentry installed", () => {
+  describe("Sentry DSN set", () => {
     before(() => {
       process.env.SENTRY_DSN = "https://sentry.example.com";
-      process.env.AWS_LAMBDA_FUNCTION_NAME = "Test-Lambda-Function";
-      process.env.LAMBDA_TASK_ROOT = "/tmp/test";
+      process.env.SENTRY_FILTER_LOCAL = "false";
     });
 
-    describe("Context Succeed/Fail/Done", () => {
-      it("should invoke context.succeed callback", (done) => {
-        /** Lambda function handler */
-        const handler = (event: any, context: { succeed: (data: { message: string; event: any }) => void }) => {
-          context.succeed({
-            message: "Go Serverless! Your function executed successfully!",
-            event,
-          });
-        };
-
-        const wrappedHandler = withSentry(SentryMock, handler);
-        sandbox.stub(mockContext, "succeed").callsFake((result: any) => {
-          expect(result).to.have.property("message").that.is.a("string");
-          done();
-        });
-        wrappedHandler(mockEvent, mockContext);
-      });
-
-      it("should invoke context.fail callback", (done) => {
-        /** Lambda function handler */
-        const handler = (event: any, context: { fail: (err: Error) => void }) => {
-          context.fail(new Error("Test Error"));
-        };
-
-        const wrappedHandler = withSentry(SentryMock, handler);
-        sandbox.stub(mockContext, "fail").callsFake((err: any) => {
-          expect(err).to.be.an("error").with.property("message", "Test Error");
-          done();
-        });
-        wrappedHandler(mockEvent, mockContext);
-      });
-
-      it("should invoke context.done callback with result", (done) => {
-        /** Lambda function handler */
-        const handler = (
-          event: any,
-          context: { done: (error: Error | undefined, data: { message: string; event: any }) => void },
-        ) => {
-          context.done(undefined, {
-            message: "Go Serverless! Your function executed successfully!",
-            event,
-          });
-        };
-
-        const wrappedHandler = withSentry(SentryMock, handler);
-        sandbox.stub(mockContext, "done").callsFake((err: any, result: any) => {
-          expect(err).to.be.undefined;
-          expect(result).to.have.property("message").that.is.a("string");
-          done();
-        });
-        wrappedHandler(mockEvent, mockContext);
-      });
-
-      it("should invoke context.done callback with error", (done) => {
-        /** Lambda function handler */
-        const handler = (event: any, context: { done: (err: Error) => void }) => {
-          context.done(new Error("Test Error"));
-        };
-
-        const wrappedHandler = withSentry(SentryMock, handler);
-        sandbox.stub(mockContext, "done").callsFake((err: any, result: any) => {
-          expect(err).to.be.an("error").with.property("message", "Test Error");
-          done();
-        });
-        wrappedHandler(mockEvent, mockContext);
-      });
-
-      it("should capture fail", (done) => {
-        /** Lambda function handler */
-        const handler = (event: any, context: { fail: (err: Error) => void }) => {
-          context.fail(new Error("Test Error"));
-        };
-
-        const wrappedHandler = withSentry(SentryMock, handler);
-        const spy = sandbox.spy(SentryMock, "captureException");
-        sandbox.stub(mockContext, "fail").callsFake((err: any) => {
-          expect(spy).to.be.calledOnce;
-          expect(spy).to.be.calledWith(sinon.match.instanceOf(Error).and(sinon.match.has("message", "Test Error")));
-          done();
-        });
-        wrappedHandler(mockEvent, mockContext);
-      });
-
-      it("should capture context.done with error", (done) => {
-        /** Lambda function handler */
-        const handler = (event: any, context: { done: (err: Error) => void }) => {
-          context.done(new Error("Test Error"));
-        };
-
-        const wrappedHandler = withSentry(SentryMock, handler);
-        const spy = sandbox.spy(SentryMock, "captureException");
-        sandbox.stub(mockContext, "done").callsFake((err: any) => {
-          expect(spy).to.be.calledOnce;
-          expect(spy).to.be.calledWith(sinon.match.instanceOf(Error).and(sinon.match.has("message", "Test Error")));
-          done();
-        });
-        wrappedHandler(mockEvent, mockContext);
-      });
+    after(() => {
+      delete process.env.SENTRY_DSN;
+      delete process.env.SENTRY_FILTER_LOCAL;
     });
 
     describe("Callbacks", () => {
-      it("should invoke handler callback on success", (done) => {
+      it("should invoke callback with result", (done) => {
         /** Lambda function handler */
-        const handler = (
-          event: any,
-          context: any,
-          callback: (err: null, data: { message: string; event: any }) => void,
-        ) => {
+        const handler = withSentry((event: any, context: any, callback: Callback<any>) => {
           callback(null, {
             message: "Go Serverless! Your function executed successfully!",
             event,
           });
-        };
+        });
 
-        const wrappedHandler = withSentry(SentryMock, handler);
-        const callback = (err: any, result: any) => {
+        handler(mockEvent, mockContext, (err: Error, result: any) => {
+          expect(mockSentry.init).to.be.calledOnce;
+          expect(mockSentry.captureException).to.not.be.called;
           expect(err).to.be.null;
           expect(result).to.have.property("message").that.is.a("string");
           done();
-        };
-        wrappedHandler(mockEvent, mockContext, callback);
+        });
       });
 
-      it("should invoke handler callback on error", (done) => {
+      it("should invoke callback with error", (done) => {
         /** Lambda function handler */
-        const handler = (event: any, context: any, callback: (err: Error) => void) => {
+        const handler = withSentry((event: any, context: any, callback: Callback<any>) => {
           callback(new Error("Test Error"));
-        };
+        });
 
-        const wrappedHandler = withSentry(SentryMock, handler);
-        const callback = (err: any) => {
+        handler(mockEvent, mockContext, (err: Error, result: any) => {
+          expect(mockSentry.init).to.be.calledOnce;
+          expect(mockSentry.captureException).to.be.calledOnce;
           expect(err).to.be.an("error").with.property("message", "Test Error");
           done();
-        };
-        wrappedHandler(mockEvent, mockContext, callback);
-      });
-
-      it("should capture error", (done) => {
-        /** Lambda function handler */
-        const handler = (event: any, context: any, callback: (err: Error) => void) => {
-          callback(new Error("Test Error"));
-        };
-
-        const wrappedHandler = withSentry(SentryMock, handler);
-        const spy = sandbox.spy(SentryMock, "captureException");
-        const callback = (err: any) => {
-          expect(spy).to.be.calledOnce;
-          expect(spy).to.be.calledWith(sinon.match.instanceOf(Error).and(sinon.match.has("message", "Test Error")));
-          done();
-        };
-        wrappedHandler(mockEvent, mockContext, callback);
+        });
       });
     });
 
     describe("Async/Await (Promises)", () => {
       it("should return fulfilled Promise", () => {
         /** Lambda function handler */
-        const handler = (event: any, context: any) => {
+        const handler = withSentry((event: any, context: any) => {
           return Promise.resolve({
             message: "Go Serverless! Your function executed successfully!",
             event,
           });
-        };
-
-        const wrappedHandler = withSentry(SentryMock, handler);
-        return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.fulfilled.then(
-          (result) => {
-            expect(result).to.have.property("message").that.is.a("string");
-          },
-        );
+        });
+        return expect(handler(mockEvent, mockContext, sinon.stub())).to.eventually.be.fulfilled.then((result) => {
+          expect(mockSentry.init).to.be.calledOnce;
+          expect(mockSentry.captureException).to.not.be.called;
+          expect(result).to.have.property("message").that.is.a("string");
+        });
       });
 
       it("should return rejected Promise", () => {
         /** Lambda function handler */
-        const handler = (event: any, context: any) => {
+        const handler = withSentry((event: any, context: any) => {
           return Promise.reject(new Error("Test Error"));
-        };
+        });
+        return expect(handler(mockEvent, mockContext, sinon.stub()))
+          .to.eventually.be.rejectedWith("Test Error")
+          .then(() => {
+            expect(mockSentry.init).to.be.calledOnce;
+            expect(mockSentry.captureException).to.be.calledOnce;
+          });
+      });
+    });
+  });
 
-        const wrappedHandler = withSentry(SentryMock, handler);
-        return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.rejectedWith("Test Error");
+  // ------------------------------------------------------------------------
+
+  describe("Custom Sentry Instance", () => {
+    describe("Callbacks", () => {
+      it("should invoke callback with result", (done) => {
+        /** Lambda function handler */
+        const handler = withSentry(mockSentry, (event: any, context: any, callback: Callback<any>) => {
+          callback(null, {
+            message: "Go Serverless! Your function executed successfully!",
+            event,
+          });
+        });
+
+        handler(mockEvent, mockContext, (err: Error, result: any) => {
+          expect(mockSentry.init).to.not.be.called;
+          expect(mockSentry.captureException).to.not.be.called;
+          expect(err).to.be.null;
+          expect(result).to.have.property("message").that.is.a("string");
+          done();
+        });
+      });
+
+      it("should invoke callback with error", (done) => {
+        /** Lambda function handler */
+        const handler = withSentry(mockSentry, (event: any, context: any, callback: Callback<any>) => {
+          callback(new Error("Test Error"));
+        });
+
+        handler(mockEvent, mockContext, (err: Error, result: any) => {
+          expect(mockSentry.init).to.not.be.called;
+          expect(mockSentry.captureException).to.be.calledOnce;
+          expect(err).to.be.an("error").with.property("message", "Test Error");
+          done();
+        });
       });
     });
 
-    describe("Context", () => {
-      it("should retain original context object", () => {
-        const originalContext = mockContext;
+    describe("Async/Await (Promises)", () => {
+      it("should return fulfilled Promise", () => {
         /** Lambda function handler */
-        const handler = (event: any, context: any, callback: any) => {
-          expect(context).to.be.equal(originalContext);
+        const handler = withSentry(mockSentry, (event: any, context: any) => {
           return Promise.resolve({
             message: "Go Serverless! Your function executed successfully!",
             event,
           });
+        });
+        return expect(handler(mockEvent, mockContext, sinon.stub())).to.eventually.be.fulfilled.then((result) => {
+          expect(mockSentry.init).to.not.be.called;
+          expect(mockSentry.captureException).to.not.be.called;
+          expect(result).to.have.property("message").that.is.a("string");
+        });
+      });
+
+      it("should return rejected Promise", () => {
+        /** Lambda function handler */
+        const handler = withSentry(mockSentry, (event: any, context: any) => {
+          return Promise.reject(new Error("Test Error"));
+        });
+        return expect(handler(mockEvent, mockContext, sinon.stub()))
+          .to.eventually.be.rejectedWith("Test Error")
+          .then(() => {
+            expect(mockSentry.init).to.not.be.called;
+            expect(mockSentry.captureException).to.be.calledOnce;
+          });
+      });
+    });
+  });
+
+  // ------------------------------------------------------------------------
+
+  describe("Custom Settings", () => {
+    const options = {
+      sentryOptions: {
+        dsn: "https://sentry.example.com",
+      },
+      filterLocal: false,
+      sourceMaps: true,
+      autoBreadcrumbs: true,
+      captureErrors: true,
+      captureUnhandledRejections: true,
+      captureUncaughtException: true,
+      captureMemoryWarnings: true,
+      captureTimeoutWarnings: true,
+    };
+
+    describe("autoBreadcrumbs", () => {
+      it("enabled - should trace Lambda function as breadcrumb", async () => {
+        /** Lambda function handler */
+        const handler = async (event: any, context: any) => {
+          return "Go Serverless! Your function executed successfully!";
         };
 
-        const wrappedHandler = withSentry(SentryMock, handler);
-        return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled;
+        const wrappedHandler = withSentry({ ...options, autoBreadcrumbs: true }, handler);
+
+        return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then(() => {
+          expect(mockSentry.init).to.be.calledOnce;
+          expect(mockSentry.addBreadcrumb).to.be.calledOnce;
+          expect(mockSentry.addBreadcrumb).to.be.calledWith({
+            category: "lambda",
+            message: "Test-Lambda-Function",
+            data: {},
+            level: "info",
+          });
+        });
+      });
+
+      it("disabled - should not trace Lambda function as breadcrumb", async () => {
+        /** Lambda function handler */
+        const handler = async (event: any, context: any) => {
+          return "Go Serverless! Your function executed successfully!";
+        };
+
+        const wrappedHandler = withSentry({ ...options, autoBreadcrumbs: false }, handler);
+
+        return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then(() => {
+          expect(mockSentry.init).to.be.calledOnce;
+          expect(mockSentry.addBreadcrumb).to.not.be.called;
+        });
       });
     });
 
-    describe("Settings", () => {
+    describe("filterLocal", () => {
+      before(() => {
+        process.env.IS_OFFLINE = "true";
+      });
+      after(() => {
+        delete process.env.IS_OFFLINE;
+      });
+
       /** Lambda function handler */
-      const handler = (
-        event: any,
-        context: any,
-        callback: (err: null, data: { message: string; event: any }) => void,
-      ) => {
-        callback(null, {
-          message: "Go Serverless! Your function executed successfully!",
-          event,
-        });
+      const handler = async (event: any, context: any) => {
+        return "Go Serverless! Your function executed successfully!";
       };
 
-      describe("autoBreadcrumbs", () => {
-        it("should trace Lambda function as breadcrumb", (done) => {
-          const spy = sandbox.spy(SentryMock, "addBreadcrumb");
-          const wrappedHandler = withSentry(SentryMock, handler);
-          const callback = (err: any, result: any) => {
-            expect(spy).to.be.calledOnce;
-            expect(spy).to.be.calledWith({
-              category: "lambda",
-              message: "Test-Lambda-Function",
-              data: {},
-              level: "info",
-            });
-            done();
-          };
-          wrappedHandler(mockEvent, mockContext, callback);
+      it("enabled - should not initialize Sentry when running locally", async () => {
+        const wrappedHandler = withSentry({ ...options, filterLocal: true }, handler);
+
+        return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then(() => {
+          expect(mockSentry.init).to.not.be.called;
         });
       });
 
-      describe("filterLocal", () => {
-        it("should not install Sentry when running locally if enabled", (done) => {
-          // TODO:
-          done();
+      it("disabled - should initialize Sentry when running locally", async () => {
+        const wrappedHandler = withSentry({ ...options, filterLocal: false }, handler);
+
+        return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then(() => {
+          expect(mockSentry.init).to.be.calledOnce;
+        });
+      });
+    });
+
+    describe("captureErrors", () => {
+      /** Lambda function handler */
+      const handler = async (event: any, context: any) => {
+        throw new Error("Test Error");
+      };
+
+      it("enabled - should capture errors returned by the Lambda", async () => {
+        const wrappedHandler = withSentry({ ...options, captureErrors: true }, handler);
+
+        return expect(wrappedHandler(mockEvent, mockContext))
+          .to.eventually.be.rejectedWith("Test Error")
+          .then(() => {
+            expect(mockSentry.init).to.be.calledOnce;
+            expect(mockSentry.captureException).to.be.calledOnce;
+          });
+      });
+
+      it("disabled - should not capture errors returned by the Lambda", async () => {
+        const wrappedHandler = withSentry({ ...options, captureErrors: false }, handler);
+
+        return expect(wrappedHandler(mockEvent, mockContext))
+          .to.eventually.be.rejectedWith("Test Error")
+          .then(() => {
+            expect(mockSentry.init).to.be.calledOnce;
+            expect(mockSentry.captureException).to.not.be.called;
+          });
+      });
+    });
+
+    describe("captureUnhandledRejections", () => {
+      /** Lambda function handler */
+      const handler = async (event: any, context: any) => {
+        // new Promise((resolve, reject) => {
+        //   setTimeout(() => {
+        //     // Cause an unhandled exception
+        //     reject(new Error("Test"));
+        //   }, 100);
+        // }); // we don't handle this promise, we don't return it
+
+        return "Go Serverless! Your function executed successfully!";
+      };
+
+      it("enabled - should capture unhandled promise rejections", async () => {
+        const wrappedHandler = withSentry({ ...options, captureUnhandledRejections: true }, handler);
+        const spyProcessListener = sandbox.spy(process, "on");
+
+        return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then(() => {
+          expect(mockSentry.init).to.be.calledOnce;
+          expect(spyProcessListener).to.be.calledWith("unhandledRejection", sinon.match.func);
+          spyProcessListener.restore();
         });
       });
 
-      describe("captureErrors", () => {
-        it("should capture errors returned by the Lambda if enabled", (done) => {
-          // TODO:
-          done();
-        });
+      it("disabled - should not capture unhandled promise rejections", async () => {
+        const wrappedHandler = withSentry({ ...options, captureUnhandledRejections: false }, handler);
+        const spyProcessListener = sandbox.spy(process, "on");
 
-        it("should not capture errors returned by the Lambda if disabled", (done) => {
-          // TODO:
-          done();
+        return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then(() => {
+          expect(mockSentry.init).to.be.calledOnce;
+          expect(spyProcessListener).to.not.be.calledWith("unhandledRejection", sinon.match.func);
+          spyProcessListener.restore();
+        });
+      });
+    });
+
+    describe("captureUncaughtException", () => {
+      /** Lambda function handler */
+      const handler = async (event: any, context: any) => {
+        return "Go Serverless! Your function executed successfully!";
+      };
+
+      it("enabled - should capture uncaught exceptions", async () => {
+        const wrappedHandler = withSentry({ ...options, captureUncaughtException: true }, handler);
+        const spyProcessListener = sandbox.spy(process, "on");
+
+        return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then(() => {
+          expect(mockSentry.init).to.be.calledOnce;
+          expect(spyProcessListener).to.be.calledWith("uncaughtException", sinon.match.func);
+          spyProcessListener.restore();
         });
       });
 
-      describe("captureUnhandledRejections", () => {
-        it("should capture unhandled exceptions if enabled", (done) => {
-          // TODO:
-          done();
-        });
+      it("disabled - should not capture uncaught exceptions", async () => {
+        const wrappedHandler = withSentry({ ...options, captureUncaughtException: false }, handler);
+        const spyProcessListener = sandbox.spy(process, "on");
 
-        it("should not capture unhandled exceptions if disabled", (done) => {
-          // TODO:
-          done();
-        });
-      });
-
-      describe("captureMemoryWarnings", () => {
-        it("should warn if Lambda function is close to running out of memory", (done) => {
-          done();
+        return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then(() => {
+          expect(mockSentry.init).to.be.calledOnce;
+          expect(spyProcessListener).to.not.be.calledWith("uncaughtException", sinon.match.func);
+          spyProcessListener.restore();
         });
       });
+    });
 
-      describe("captureTimeoutWarnings", function () {
-        const remainingTime = 2000;
-        this.timeout(remainingTime * 2);
+    describe("captureMemoryWarnings", () => {
+      it("should warn if Lambda function is close to running out of memory", (done) => {
+        // TODO
+        done();
+      });
+    });
 
-        /** Lambda function handler */
-        const handler = (event: any, context: any) => {
-          // Now wait for the timeout...
-          return new Promise((resolve) => setTimeout(resolve, remainingTime + 100));
-        };
+    describe("captureTimeoutWarnings", function () {
+      const remainingTime = 2000;
+      this.timeout(remainingTime * 2);
 
-        beforeEach(() => {
-          const start = Date.now();
-          const stubRemainingTime = sandbox
-            .stub(mockContext, "getRemainingTimeInMillis")
-            .callsFake(() => start + remainingTime - Date.now());
-        });
+      /** Lambda function handler */
+      const handler = (event: any, context: any) => {
+        // Now wait for the timeout...
+        return new Promise((resolve) => setTimeout(resolve, remainingTime + 100));
+      };
 
-        it("should warn if more than half of the originally available time has passed", () => {
-          const spy = sandbox.spy(SentryMock, "captureMessage");
-          const spyScopeSetLevel = sandbox.spy(ScopeMock, "setLevel");
-          const spyScopeSetExtras = sandbox.spy(ScopeMock, "setExtras");
-          const wrappedHandler = withSentry(SentryMock, handler);
-          return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then((result) => {
-            expect(spy).to.be.calledWith("Function Execution Time Warning");
-            expect(spyScopeSetLevel).to.be.calledWith("warning");
-            expect(spyScopeSetExtras).to.be.calledWith({
+      beforeEach(() => {
+        const start = Date.now();
+        const stubRemainingTime = sandbox
+          .stub(mockContext, "getRemainingTimeInMillis")
+          .callsFake(() => start + remainingTime - Date.now());
+      });
+
+      afterEach(() => {
+        (mockContext.getRemainingTimeInMillis as Sinon.SinonStub<any>).restore();
+      });
+
+      it("should warn if more than half of the originally available time has passed", () => {
+        const wrappedHandler = withSentry(options, handler);
+        return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.fulfilled.then(
+          (result) => {
+            expect(mockSentry.captureMessage).to.be.calledWith("Function Execution Time Warning");
+            expect(mockScope.setLevel).to.be.calledWith("warning");
+            expect(mockScope.setExtras).to.be.calledWith({
               TimeRemainingInMsec: sinon.match.number,
             });
             // The callback happens exactly at half-time
-            expect(spyScopeSetExtras.firstCall.args[0].TimeRemainingInMsec)
+            expect(mockScope.setExtras.firstCall.args[0].TimeRemainingInMsec)
               .to.be.lessThan(remainingTime / 2 + 1)
               .and.above(remainingTime / 2 - 100);
-          });
-        });
+          },
+        );
+      });
 
-        it("should error if Lambda timeout is hit", function () {
-          const spy = sandbox.spy(SentryMock, "captureMessage");
-          const spyScopeSetLevel = sandbox.spy(ScopeMock, "setLevel");
-          const spyScopeSetExtras = sandbox.spy(ScopeMock, "setExtras");
-          const wrappedHandler = withSentry(SentryMock, handler);
-          return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then((result) => {
-            expect(spy).to.be.calledWith("Function Timed Out");
-            expect(spyScopeSetLevel).to.be.calledWith("error");
-            expect(spyScopeSetExtras).to.be.calledWith({
+      it("should error if Lambda timeout is hit", () => {
+        const wrappedHandler = withSentry(options, handler);
+        return expect(wrappedHandler(mockEvent, mockContext, sinon.stub())).to.eventually.be.fulfilled.then(
+          (result) => {
+            expect(mockSentry.captureMessage).to.be.calledWith("Function Timed Out");
+            expect(mockScope.setLevel).to.be.calledWith("error");
+            expect(mockScope.setExtras).to.be.calledWith({
               TimeRemainingInMsec: sinon.match.number,
             });
             // The callback happens 500 msecs before Lambda would time out
-            expect(spyScopeSetExtras.secondCall.args[0].TimeRemainingInMsec).to.be.lessThan(501).and.above(400);
-          });
-        });
+            expect(mockScope.setExtras.secondCall.args[0].TimeRemainingInMsec).to.be.lessThan(501).and.above(400);
+          },
+        );
       });
     });
   });
