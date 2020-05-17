@@ -120,8 +120,7 @@ You can still manually set environment variables on a per-function level to over
 
 ## Updating Your Code
 
-For maximum flexibility this library is implemented as a wrapper around your original AWS Lambda handler code (your `handler.js` or similar function). The
-`withSentry` higher-order function adds error and exception handling, and takes care of configuring the Sentry client automatically.
+For maximum flexibility this library is implemented as a wrapper around your original AWS Lambda handler code (your `handler.js` or similar function). The `withSentry` higher-order function adds error and exception handling, and takes care of configuring the Sentry client automatically.
 
 `withSentry` is pre-configured to reasonable defaults and doesn't need any configuration. If will automatically load and configure `@sentry/node` which needs to be installed as a peer dependency.
 
