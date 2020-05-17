@@ -429,3 +429,7 @@ function withSentry(arg1, arg2) {
 exports.withSentry = withSentry;
 exports.default = withSentry;
 module.exports = withSentry;
+// TypeScript imports the `default` property for
+// an ES2015 default import (`import test from 'ava'`)
+// See: https://github.com/Microsoft/TypeScript/issues/2242#issuecomment-83694181
+module.exports.default = withSentry;

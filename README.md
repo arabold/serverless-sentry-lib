@@ -282,6 +282,10 @@ module.exports.handler = withSentry({ captureErrors: false }, (event, context, c
 
 ## Version History
 
+### 2.0.1
+
+- Fixed some type resolution issues in the generated TypeScript definition file
+
 ### 2.0.0
 
 - Rewrite using TypeScript. The use of TypeScript in your project is fully optional, but if you do, we got you covered!

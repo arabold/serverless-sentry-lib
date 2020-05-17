@@ -1,7 +1,20 @@
 /* eslint-disable promise/no-promise-in-callback, promise/no-callback-in-promise */
 
 import * as SentryLib from "@sentry/node";
-import { Callback, Context, Handler } from "aws-lambda";
+import { Callback, Context } from "aws-lambda";
+
+// We export a custom `Handler` type here so the `withSentry` type can be resolved without
+// the need of any third party library. The types `Context` and `Callback` will still require
+// the import of the `aws-lambda` package though.
+/**
+ * {@link Handler} context parameter.
+ * See {@link https://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-context.html AWS documentation}.
+ */
+export type Handler<TEvent = any, TResult = any> = (
+  event: TEvent,
+  context: Context,
+  callback: Callback<TResult>,
+) => void | Promise<TResult>;
 
 /**
  * Serverless Sentry Lib Configuration
@@ -485,3 +498,8 @@ export function withSentry<TEvent = any, TResult = any>(
 
 export default withSentry;
 module.exports = withSentry;
+
+// TypeScript imports the `default` property for
+// an ES2015 default import (`import test from 'ava'`)
+// See: https://github.com/Microsoft/TypeScript/issues/2242#issuecomment-83694181
+module.exports.default = withSentry;
