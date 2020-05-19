@@ -293,3 +293,9 @@ module.exports.handler = withSentry({ captureErrors: false }, (event, context, c
 - Upgrade from Sentry SDK `raven` to the _Unified Node.js SDK_ [`@sentry/node`](https://docs.sentry.io/error-reporting/configuration/?platform=node).
 - Simplified integration using `withSentry` higher order function. Passing the Sentry instance is now optional.
 - Thank you [@aheissenberger](https://github.com/aheissenberger) and [@Vadorequest](https://github.com/Vadorequest) for their contributions to this release! 🤗
+
+### Support
+
+That you for supporting me and my projects.
+
+[![](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=8Q53B78GGYQAJ&currency_code=USD&source=url)
