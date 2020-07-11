@@ -58,14 +58,38 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.withSentry = void 0;
 var SentryLib = require("@sentry/node");
 /**
- * Initialize Sentry
+ * Tries to convert any given value into a boolean `true`/`false`.
+ *
+ * @param value - Value to parse
+ * @param defaultValue - Default value to use if no valid value was passed
+ */
+function parseBoolean(value, defaultValue) {
+    if (defaultValue === void 0) { defaultValue = false; }
+    var v = String(value).trim().toLowerCase();
+    if (["true", "t", "1", "yes", "y", "on"].includes(v)) {
+        return true;
+    }
+    else if (["false", "f", "0", "no", "n", "off"].includes(v)) {
+        return false;
+    }
+    else {
+        return defaultValue;
+    }
+}
+/** Type Guard: Check if passed value is a Sentry instance */
+function isSentryInstance(value) {
+    return typeof (value === null || value === void 0 ? void 0 : value.captureException) === "function" && typeof (value === null || value === void 0 ? void 0 : value.captureMessage) === "function";
+}
+/**
+ * Initialize Sentry. This function is called by `withSentry` if no custom Sentry instance is
+ * passed. Do not invoke directly!
  *
  * @param options - Plugin configuration. This is NOT optional!
  */
 function initSentry(options) {
     var _a, _b, _c;
     // Check for local environment
-    var isLocalEnv = process.env.IS_OFFLINE || process.env.IS_LOCAL || !process.env.LAMBDA_TASK_ROOT;
+    var isLocalEnv = parseBoolean(process.env.IS_OFFLINE) || parseBoolean(process.env.IS_LOCAL) || !process.env.LAMBDA_TASK_ROOT;
     if (options.filterLocal && isLocalEnv) {
         // Running locally.
         console.warn("Sentry disabled in local environment.");
@@ -206,28 +230,6 @@ function clearTimers() {
         memoryWatch = null;
     }
 }
-/**
- * Tries to convert any given value into a boolean `true`/`false`.
- *
- * @param value - Value to parse
- * @param defaultValue - Default value to use if no valid value was passed
- */
-function parseBoolean(value, defaultValue) {
-    var v = String(value).trim().toLowerCase();
-    if (["true", "t", "1", "yes", "y"].includes(v)) {
-        return true;
-    }
-    else if (["false", "f", "0", "no", "n"].includes(v)) {
-        return false;
-    }
-    else {
-        return defaultValue;
-    }
-}
-/** Type Guard: Check if passed value is a Sentry instance */
-function isSentryInstance(value) {
-    return typeof (value === null || value === void 0 ? void 0 : value.captureException) === "function" && typeof (value === null || value === void 0 ? void 0 : value.captureMessage) === "function";
-}
 function withSentry(arg1, arg2) {
     var _this = this;
     var _a;
@@ -356,8 +358,12 @@ function withSentry(arg1, arg2) {
                         options.captureUnhandledRejections && process.removeListener("unhandledRejection", unhandledRejectionListener);
                         options.captureUncaughtException && process.removeListener("uncaughtException", uncaughtExceptionListener);
                         if (!!customSentryClient) return [3 /*break*/, 2];
-                        return [4 /*yield*/, sentryClient.close(2000)];
+                        // Use `flush`, not `close` here as the Lambda might be kept alive and we don't want
+                        // to break our Sentry instance
+                        return [4 /*yield*/, sentryClient.flush(2000)];
                     case 1:
+                        // Use `flush`, not `close` here as the Lambda might be kept alive and we don't want
+                        // to break our Sentry instance
                         _a.sent();
                         _a.label = 2;
                     case 2: return [2 /*return*/];
