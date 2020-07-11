@@ -65,13 +65,36 @@ export type WithSentryOptions = {
 };
 
 /**
+ * Tries to convert any given value into a boolean `true`/`false`.
+ *
+ * @param value - Value to parse
+ * @param defaultValue - Default value to use if no valid value was passed
+ */
+function parseBoolean(value: any, defaultValue: boolean = false): boolean {
+  const v = String(value).trim().toLowerCase();
+  if (["true", "t", "1", "yes", "y", "on"].includes(v)) {
+    return true;
+  } else if (["false", "f", "0", "no", "n", "off"].includes(v)) {
+    return false;
+  } else {
+    return defaultValue;
+  }
+}
+
+/** Type Guard: Check if passed value is a Sentry instance */
+function isSentryInstance(value: any): value is typeof SentryLib {
+  return typeof value?.captureException === "function" && typeof value?.captureMessage === "function";
+}
+
+/**
  * Initialize Sentry
  *
  * @param options - Plugin configuration. This is NOT optional!
  */
 function initSentry(options: WithSentryOptions): typeof SentryLib | undefined {
   // Check for local environment
-  const isLocalEnv = process.env.IS_OFFLINE || process.env.IS_LOCAL || !process.env.LAMBDA_TASK_ROOT;
+  const isLocalEnv =
+    parseBoolean(process.env.IS_OFFLINE) || parseBoolean(process.env.IS_LOCAL) || !process.env.LAMBDA_TASK_ROOT;
   if (options.filterLocal && isLocalEnv) {
     // Running locally.
     console.warn("Sentry disabled in local environment.");
@@ -227,28 +250,6 @@ function clearTimers() {
     clearTimeout(memoryWatch);
     memoryWatch = null;
   }
-}
-
-/**
- * Tries to convert any given value into a boolean `true`/`false`.
- *
- * @param value - Value to parse
- * @param defaultValue - Default value to use if no valid value was passed
- */
-function parseBoolean(value: any, defaultValue: boolean): boolean {
-  const v = String(value).trim().toLowerCase();
-  if (["true", "t", "1", "yes", "y"].includes(v)) {
-    return true;
-  } else if (["false", "f", "0", "no", "n"].includes(v)) {
-    return false;
-  } else {
-    return defaultValue;
-  }
-}
-
-/** Type Guard: Check if passed value is a Sentry instance */
-function isSentryInstance(value: any): value is typeof SentryLib {
-  return typeof value?.captureException === "function" && typeof value?.captureMessage === "function";
 }
 
 /**

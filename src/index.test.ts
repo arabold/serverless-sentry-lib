@@ -358,10 +358,7 @@ describe("withSentry", () => {
     });
 
     describe("filterLocal", () => {
-      before(() => {
-        process.env.IS_OFFLINE = "true";
-      });
-      after(() => {
+      afterEach(() => {
         delete process.env.IS_OFFLINE;
       });
 
@@ -371,6 +368,7 @@ describe("withSentry", () => {
       };
 
       it("enabled - should not initialize Sentry when running locally", async () => {
+        process.env.IS_OFFLINE = "true";
         const wrappedHandler = withSentry({ ...options, filterLocal: true }, handler);
 
         return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then(() => {
@@ -378,7 +376,26 @@ describe("withSentry", () => {
         });
       });
 
+      it("enabled - should initialize Sentry when not running locally", async () => {
+        process.env.IS_OFFLINE = "false";
+        const wrappedHandler = withSentry({ ...options, filterLocal: true }, handler);
+
+        return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then(() => {
+          expect(mockSentry.init).to.be.calledOnce;
+        });
+      });
+
       it("disabled - should initialize Sentry when running locally", async () => {
+        process.env.IS_OFFLINE = "true";
+        const wrappedHandler = withSentry({ ...options, filterLocal: false }, handler);
+
+        return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then(() => {
+          expect(mockSentry.init).to.be.calledOnce;
+        });
+      });
+
+      it("disabled - should initialize Sentry when not running locally", async () => {
+        process.env.IS_OFFLINE = "false";
         const wrappedHandler = withSentry({ ...options, filterLocal: false }, handler);
 
         return expect(wrappedHandler(mockEvent, mockContext)).to.eventually.be.fulfilled.then(() => {
