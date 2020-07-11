@@ -87,7 +87,8 @@ function isSentryInstance(value: any): value is typeof SentryLib {
 }
 
 /**
- * Initialize Sentry
+ * Initialize Sentry. This function is called by `withSentry` if no custom Sentry instance is
+ * passed. Do not invoke directly!
  *
  * @param options - Plugin configuration. This is NOT optional!
  */
@@ -436,7 +437,9 @@ export function withSentry<TEvent = any, TResult = any>(
       options.captureUncaughtException && process.removeListener("uncaughtException", uncaughtExceptionListener);
 
       if (!customSentryClient) {
-        await sentryClient.close(2000);
+        // Use `flush`, not `close` here as the Lambda might be kept alive and we don't want
+        // to break our Sentry instance
+        await sentryClient.flush(2000);
       }
     };
 
