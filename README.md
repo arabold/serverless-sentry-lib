@@ -283,7 +283,7 @@ module.exports.handler = withSentry({ captureErrors: false }, (event, context, c
 
 ### 2.1.0
 
-- Explicitly check environment variables `IS_OFFLINE` and `IS_LOCAL` for their values. Everything that's not an empty string, `no`, `off`, `false`, or `0` will be considered `true`. Thanks to [danilofuchs](https://github.com/danilofuchs) for suggesting.
+- Explicitly check environment variables `IS_OFFLINE` and `IS_LOCAL` for truthy strings (`yes`, `on`, `true`, `t`, or `1`). Thanks to [danilofuchs](https://github.com/danilofuchs) for suggesting.
 - Flush to Sentry when the Lambda function finishes but don't close Sentry yet as we might get called again. [#23](https://github.com/arabold/serverless-sentry-lib/issues/23)
 
 ### 2.0.1
