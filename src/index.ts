@@ -342,6 +342,7 @@ export function withSentry<TEvent = any, TResult = any>(
       extras: {
         Event: event,
         Context: context,
+        ...options.scope?.extras
       },
       tags: {
         lambda: String(process.env.AWS_LAMBDA_FUNCTION_NAME),
@@ -350,6 +351,7 @@ export function withSentry<TEvent = any, TResult = any>(
         log_group: String(process.env.AWS_LAMBDA_LOG_GROUP_NAME),
         log_stream: String(process.env.AWS_LAMBDA_LOG_STREAM_NAME),
         region: String(process.env.SERVERLESS_REGION || process.env.AWS_REGION),
+        ...options.scope?.tags
       },
     };
 
@@ -374,6 +376,7 @@ export function withSentry<TEvent = any, TResult = any>(
         cognito_identity_pool_id: identity.cognitoIdentityPoolId,
         cognito_authentication_type: identity.cognitoAuthenticationType,
         user_agent: identity.userAgent,
+        ...options.scope?.user
       };
     }
 

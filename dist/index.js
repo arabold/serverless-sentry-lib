@@ -264,25 +264,15 @@ function withSentry(arg1, arg2) {
     var sentryClient = (_a = customSentryClient !== null && customSentryClient !== void 0 ? customSentryClient : options.sentry) !== null && _a !== void 0 ? _a : initSentry(options);
     // Create a new handler function wrapping the original one and hooking into all callbacks
     return function (event, context, callback) {
-        var _a, _b, _c, _d, _e;
+        var _a, _b, _c, _d, _e, _f, _g, _h;
         if (!sentryClient) {
             // Pass-through to the original handler and return
             return handler(event, context, callback);
         }
         // Additional context to be stored with Sentry events and messages
         var additionalScope = {
-            extras: {
-                Event: event,
-                Context: context,
-            },
-            tags: {
-                lambda: String(process.env.AWS_LAMBDA_FUNCTION_NAME),
-                version: String(process.env.AWS_LAMBDA_FUNCTION_VERSION),
-                memory_size: String(process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE),
-                log_group: String(process.env.AWS_LAMBDA_LOG_GROUP_NAME),
-                log_stream: String(process.env.AWS_LAMBDA_LOG_STREAM_NAME),
-                region: String(process.env.SERVERLESS_REGION || process.env.AWS_REGION),
-            },
+            extras: __assign({ Event: event, Context: context }, (_a = options.scope) === null || _a === void 0 ? void 0 : _a.extras),
+            tags: __assign({ lambda: String(process.env.AWS_LAMBDA_FUNCTION_NAME), version: String(process.env.AWS_LAMBDA_FUNCTION_VERSION), memory_size: String(process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE), log_group: String(process.env.AWS_LAMBDA_LOG_GROUP_NAME), log_stream: String(process.env.AWS_LAMBDA_LOG_STREAM_NAME), region: String(process.env.SERVERLESS_REGION || process.env.AWS_REGION) }, (_b = options.scope) === null || _b === void 0 ? void 0 : _b.tags),
         };
         if (process.env.SERVERLESS_SERVICE)
             additionalScope.tags.service_name = process.env.SERVERLESS_SERVICE;
@@ -292,20 +282,13 @@ function withSentry(arg1, arg2) {
             additionalScope.tags.alias = process.env.SERVERLESS_ALIAS;
         // Depending on the endpoint type the identity information can be at
         // event.requestContext.identity (AWS_PROXY) or at context.identity (AWS)
-        var identity = ((_a = context.identity) === null || _a === void 0 ? void 0 : _a.constructor) === Object && Object.keys(context.identity).length > 0
+        var identity = ((_c = context.identity) === null || _c === void 0 ? void 0 : _c.constructor) === Object && Object.keys(context.identity).length > 0
             ? context.identity
-            : (_b = event.requestContext) === null || _b === void 0 ? void 0 : _b.identity;
+            : (_d = event.requestContext) === null || _d === void 0 ? void 0 : _d.identity;
         if (identity) {
             // Track the caller's Cognito identity
             // id, username and ip_address are key fields in Sentry
-            additionalScope.user = {
-                id: identity.cognitoIdentityId || undefined,
-                username: identity.user || undefined,
-                ip_address: identity.sourceIp || undefined,
-                cognito_identity_pool_id: identity.cognitoIdentityPoolId,
-                cognito_authentication_type: identity.cognitoAuthenticationType,
-                user_agent: identity.userAgent,
-            };
+            additionalScope.user = __assign({ id: identity.cognitoIdentityId || undefined, username: identity.user || undefined, ip_address: identity.sourceIp || undefined, cognito_identity_pool_id: identity.cognitoIdentityPoolId, cognito_authentication_type: identity.cognitoAuthenticationType, user_agent: identity.userAgent }, (_e = options.scope) === null || _e === void 0 ? void 0 : _e.user);
         }
         // Add additional tags for AWS_PROXY endpoints
         if (event.requestContext) {
@@ -380,7 +363,7 @@ function withSentry(arg1, arg2) {
             };
             if (event.requestContext) {
                 // Track HTTP request info as part of the breadcrumb
-                breadcrumb.data = __assign(__assign({}, breadcrumb.data), { http_method: (_c = event.requestContext) === null || _c === void 0 ? void 0 : _c.httpMethod, host: (_d = event.headers) === null || _d === void 0 ? void 0 : _d.Host, path: event.path, user_agent: (_e = event.headers) === null || _e === void 0 ? void 0 : _e["User-Agent"] });
+                breadcrumb.data = __assign(__assign({}, breadcrumb.data), { http_method: (_f = event.requestContext) === null || _f === void 0 ? void 0 : _f.httpMethod, host: (_g = event.headers) === null || _g === void 0 ? void 0 : _g.Host, path: event.path, user_agent: (_h = event.headers) === null || _h === void 0 ? void 0 : _h["User-Agent"] });
             }
             sentryClient.addBreadcrumb(breadcrumb);
         }
