@@ -16,6 +16,26 @@ export type Handler<TEvent = any, TResult = any> = (
   callback: Callback<TResult>,
 ) => void | Promise<TResult>;
 
+export type CaptureMemoryOptions = {
+  enabled: boolean;
+  /**
+   * How often to check for low memory warnings (in milliseconds; defaults to 500)
+   */
+  interval?: number;
+};
+
+export type CaptureTimeoutOptions = {
+  enabled: boolean;
+  /**
+   * When to generate a warning (defaults to half of the remaining Lambda execution time)
+   */
+  timeRemainingWarning?: number;
+  /**
+   * When to generate an error (defaults to `500` milliseconds before the Lambda will actually timeout)
+   */
+  timeRemainingError?: number;
+};
+
 /**
  * Serverless Sentry Lib Configuration
  */
@@ -49,6 +69,10 @@ export type WithSentryOptions = {
    * Only has an effect if no custom Sentry instance is used.
    */
   sourceMaps?: boolean;
+  /**
+   * Optional timeout when flushing Sentry events before exiting the Lambda (in millisecs)
+   */
+  flushTimeout?: number;
 
   /** Automatically create breadcrumbs (see Sentry SDK docs, default to `true`) */
   autoBreadcrumbs?: boolean;
@@ -58,10 +82,20 @@ export type WithSentryOptions = {
   captureUnhandledRejections?: boolean;
   /** Capture uncaught exceptions (defaults to `true`) */
   captureUncaughtException?: boolean;
-  /** Monitor memory usage (defaults to `true`) */
+  /**
+   * Monitor memory usage (defaults to `true`)
+   * @deprecated - use `captureMemory` instead
+   */
   captureMemoryWarnings?: boolean;
-  /** Monitor execution timeouts (defaults to `true`) */
+  /** Monitor memory usage (defaults to `true`) */
+  captureMemory?: boolean | CaptureMemoryOptions;
+  /**
+   * Monitor execution timeouts (defaults to `true`)
+   * @deprecated - use `captureTimeouts` instead
+   */
   captureTimeoutWarnings?: boolean;
+  /** Monitor execution timeouts (defaults to `true`) */
+  captureTimeouts?: boolean | CaptureTimeoutOptions;
 };
 
 /**
@@ -152,11 +186,11 @@ function initSentry(options: WithSentryOptions): typeof SentryLib | undefined {
 
 // Timers
 /** Watch memory usage */
-let memoryWatch: NodeJS.Timeout | null;
+let memoryWatchTimer: NodeJS.Timeout | null;
 /** Warn if we're about to reach the timeout */
-let timeoutWarning: NodeJS.Timeout | null;
+let timeoutWarningTimer: NodeJS.Timeout | null;
 /** Error if timeout is reached */
-let timeoutError: NodeJS.Timeout | null;
+let timeoutErrorTimer: NodeJS.Timeout | null;
 
 /**
  * Install Watchdog timers
@@ -167,6 +201,18 @@ let timeoutError: NodeJS.Timeout | null;
 function installTimers(sentryClient: typeof SentryLib, pluginConfig: WithSentryOptions, lambdaContext: Context) {
   const timeRemaining = lambdaContext.getRemainingTimeInMillis();
   const memoryLimit = Number(lambdaContext.memoryLimitInMB);
+  const flushTimeout = pluginConfig.flushTimeout ?? pluginConfig.sentryOptions?.shutdownTimeout ?? 2000;
+  const captureTimeouts =
+    pluginConfig.captureTimeouts === true || (pluginConfig.captureTimeouts as CaptureTimeoutOptions)?.enabled;
+  const timeoutWarningMsec = Math.floor(
+    (pluginConfig.captureTimeouts as CaptureTimeoutOptions)?.timeRemainingWarning ?? timeRemaining / 2,
+  );
+  const timeoutErrorMsec = Math.floor(
+    (pluginConfig.captureTimeouts as CaptureTimeoutOptions)?.timeRemainingError ?? flushTimeout,
+  );
+  const captureMemory =
+    pluginConfig.captureMemory === true || (pluginConfig.captureMemory as CaptureMemoryOptions)?.enabled;
+  const captureMemoryInterval = Math.floor((pluginConfig.captureMemory as CaptureMemoryOptions)?.interval ?? 500);
 
   /** Watch for Lambdas approaching half of the defined timeout value */
   const timeoutWarningFunc = (cb: Callback<any>) => {
@@ -178,7 +224,7 @@ function installTimers(sentryClient: typeof SentryLib, pluginConfig: WithSentryO
       sentryClient.captureMessage("Function Execution Time Warning");
     });
     sentryClient
-      .flush(2000)
+      .flush(flushTimeout)
       .then(() => cb?.())
       .catch(null);
   };
@@ -193,7 +239,7 @@ function installTimers(sentryClient: typeof SentryLib, pluginConfig: WithSentryO
       sentryClient.captureMessage("Function Timed Out");
     });
     sentryClient
-      .flush(2000)
+      .flush(flushTimeout)
       .then(() => cb?.())
       .catch(null);
   };
@@ -212,26 +258,32 @@ function installTimers(sentryClient: typeof SentryLib, pluginConfig: WithSentryO
         sentryClient.captureMessage("Low Memory Warning");
       });
       sentryClient
-        .flush(2000)
+        .flush(flushTimeout)
         .then(() => cb?.())
         .catch(null);
     } else {
       // The memory watchdog is triggered twice a second
-      memoryWatch = setTimeout(memoryWatchFunc, 500);
+      memoryWatchTimer = setTimeout(memoryWatchFunc, captureMemoryInterval);
     }
   };
 
-  if (pluginConfig.captureTimeoutWarnings) {
+  if (
+    captureTimeouts &&
+    timeoutWarningMsec > 0 &&
+    timeoutErrorMsec > 0 &&
+    timeRemaining > timeoutWarningMsec &&
+    timeRemaining > timeoutErrorMsec
+  ) {
     // We schedule the warning at half the maximum execution time and
     // the error a few milliseconds before the actual timeout happens.
-    timeoutWarning = setTimeout(timeoutWarningFunc, timeRemaining / 2);
-    timeoutError = setTimeout(timeoutErrorFunc, Math.max(timeRemaining - 500, 0));
+    timeoutWarningTimer = setTimeout(timeoutWarningFunc, timeRemaining - timeoutWarningMsec);
+    timeoutErrorTimer = setTimeout(timeoutErrorFunc, timeRemaining - timeoutErrorMsec);
   }
 
-  if (pluginConfig.captureMemoryWarnings) {
+  if (captureMemory && captureMemoryInterval > 0) {
     // Schedule memory watch dog interval. Note that we're not using
     // setInterval() here as we don't want invokes to be skipped.
-    memoryWatch = setTimeout(memoryWatchFunc, 500);
+    memoryWatchTimer = setTimeout(memoryWatchFunc, captureMemoryInterval);
   }
 }
 
@@ -239,17 +291,17 @@ function installTimers(sentryClient: typeof SentryLib, pluginConfig: WithSentryO
  * Stops and removes all timers
  */
 function clearTimers() {
-  if (timeoutWarning) {
-    clearTimeout(timeoutWarning);
-    timeoutWarning = null;
+  if (timeoutWarningTimer) {
+    clearTimeout(timeoutWarningTimer);
+    timeoutWarningTimer = null;
   }
-  if (timeoutError) {
-    clearTimeout(timeoutError);
-    timeoutError = null;
+  if (timeoutErrorTimer) {
+    clearTimeout(timeoutErrorTimer);
+    timeoutErrorTimer = null;
   }
-  if (memoryWatch) {
-    clearTimeout(memoryWatch);
-    memoryWatch = null;
+  if (memoryWatchTimer) {
+    clearTimeout(memoryWatchTimer);
+    memoryWatchTimer = null;
   }
 }
 
@@ -318,8 +370,8 @@ export function withSentry<TEvent = any, TResult = any>(
     captureErrors: parseBoolean(process.env.SENTRY_CAPTURE_ERRORS, true),
     captureUnhandledRejections: parseBoolean(process.env.SENTRY_CAPTURE_UNHANDLED, true),
     captureUncaughtException: parseBoolean(process.env.SENTRY_CAPTURE_UNCAUGHT, true),
-    captureMemoryWarnings: parseBoolean(process.env.SENTRY_CAPTURE_MEMORY, true),
-    captureTimeoutWarnings: parseBoolean(process.env.SENTRY_CAPTURE_TIMEOUTS, true),
+    captureMemory: parseBoolean(process.env.SENTRY_CAPTURE_MEMORY, true),
+    captureTimeouts: parseBoolean(process.env.SENTRY_CAPTURE_TIMEOUTS, true),
     autoBreadcrumbs: parseBoolean(process.env.SENTRY_AUTO_BREADCRUMBS, true),
     filterLocal: parseBoolean(process.env.SENTRY_FILTER_LOCAL, true),
     sourceMaps: parseBoolean(process.env.SENTRY_SOURCEMAPS, false),
@@ -327,8 +379,18 @@ export function withSentry<TEvent = any, TResult = any>(
     ...customOptions,
   };
 
+  if (typeof options.captureMemoryWarnings !== "undefined") {
+    console.warn("`WithSentryOptions#captureMemoryWarnings` is deprecated. Use `captureMemory` instead!");
+    options.captureMemory = options.captureMemory ?? options.captureMemoryWarnings;
+  }
+  if (typeof options.captureTimeoutWarnings !== "undefined") {
+    console.warn("`WithSentryOptions#captureTimeoutWarnings` is deprecated. Use `captureTimeouts` instead!");
+    options.captureTimeouts = options.captureTimeouts ?? options.captureTimeoutWarnings;
+  }
+
   // Install sentry
   const sentryClient = customSentryClient ?? options.sentry ?? initSentry(options);
+  const flushTimeout = options.flushTimeout ?? options.sentryOptions?.shutdownTimeout;
 
   // Create a new handler function wrapping the original one and hooking into all callbacks
   return (event: any, context: Context, callback: Callback<any>) => {
@@ -368,6 +430,7 @@ export function withSentry<TEvent = any, TResult = any>(
       // Track the caller's Cognito identity
       // id, username and ip_address are key fields in Sentry
       additionalScope.user = {
+        ...additionalScope.user,
         id: identity.cognitoIdentityId || undefined, // turn empty string and null into undefined
         username: identity.user || undefined,
         ip_address: identity.sourceIp || undefined,
@@ -388,13 +451,17 @@ export function withSentry<TEvent = any, TResult = any>(
     }
 
     sentryClient.configureScope((scope) => {
-      additionalScope.user && scope.setUser(additionalScope.user);
-      additionalScope.extras && scope.setExtras(additionalScope.extras);
-      additionalScope.tags && scope.setTags(additionalScope.tags);
+      if (!customSentryClient) {
+        // Make sure we work with a clean scope as AWS is reusing our Lambda instance if it's already warm
+        scope.clear();
+      }
+      scope.setUser({ ...additionalScope.user, ...options.scope?.user });
+      scope.setExtras({ ...additionalScope.extras, ...options.scope?.extras });
+      scope.setTags({ ...additionalScope.tags, ...options.scope?.tags });
     });
 
     // Monitor for timeouts and memory usage
-    // The timers will be removed in the wrappedCtx and wrappedCb below
+    // The timers will be removed in `finalize` function below
     installTimers(sentryClient, options, context);
 
     const unhandledRejectionListener = (err: any, p: Promise<any>) => {
@@ -416,12 +483,12 @@ export function withSentry<TEvent = any, TResult = any>(
       sentryClient.withScope((scope) => {
         scope.setLevel(SentryLib.Severity.Fatal);
         sentryClient.captureException(err);
-        // Now exit the process; there is no recovery from this
-        sentryClient
-          .close(2000)
-          .then(() => process.exit(1))
-          .catch(() => process.exit(1));
       });
+      // Now exit the process; there is no recovery from this
+      sentryClient
+        .close(flushTimeout)
+        .then(() => process.exit(1))
+        .catch(() => process.exit(1));
     };
     if (options.captureUncaughtException) {
       // Enable capturing of uncaught exceptions
@@ -439,7 +506,7 @@ export function withSentry<TEvent = any, TResult = any>(
       if (!customSentryClient) {
         // Use `flush`, not `close` here as the Lambda might be kept alive and we don't want
         // to break our Sentry instance
-        await sentryClient.flush(2000);
+        await sentryClient.flush(flushTimeout);
       }
     };
 
@@ -473,13 +540,13 @@ export function withSentry<TEvent = any, TResult = any>(
         sentryClient.captureException(err);
       }
       finalize()
-        .finally(() => callback(err, data))
+        .finally(() => callback(err, data)) // invoke the original callback
         .catch(null);
     });
 
     if (!callbackCalled && typeof response === "object" && typeof response.then === "function") {
       // The handler returned a promise instead of invoking the callback function
-      return (async () => {
+      const resolveResponseAsync = async () => {
         try {
           // resolve the response
           return await response;
@@ -493,7 +560,8 @@ export function withSentry<TEvent = any, TResult = any>(
           // Cleanup
           await finalize();
         }
-      })();
+      };
+      return resolveResponseAsync();
     } else {
       return response;
     }

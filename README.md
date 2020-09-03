@@ -183,12 +183,13 @@ Or, alternatively, you can pass in a custom, already preconfigured Sentry object
 
 In addition you can set any of the following options to control what events should be captured:
 
+- `flushTimeout` - How long we should wait for Sentry data to be written when shutting down the Lambda or between invocations (defaults to `2000` milliseconds).
 - `autoBreadcrumbs` - Automatically create breadcrumbs (see Sentry SDK docs, defaults to `true`).
 - `captureErrors` - capture Lambda errors (defaults to `true`).
 - `captureUnhandledRejections` - capture unhandled Promise rejections (defaults to `true`).
 - `captureUncaughtException` - capture uncaught exceptions (defaults to `true`).
-- `captureMemoryWarnings` - monitor memory usage (defaults to `true`).
-- `captureTimeoutWarnings` - monitor execution timeouts (defaults to `true`).
+- `captureMemory` - monitor memory usage (defaults to `true`).
+- `captureTimeouts` - monitor execution timeouts (defaults to `true`).
 
 #### Example
 
@@ -211,8 +212,8 @@ const withSentryOptions = {
   captureErrors: false,
   captureUnhandledRejections: true,
   captureUncaughtException: true,
-  captureMemoryWarnings: true,
-  captureTimeoutWarnings: true,
+  captureMemory: true,
+  captureTimeouts: true,
 };
 
 export const handler = withSentry(withSentryOptions, async (event, context) => {
@@ -280,6 +281,13 @@ module.exports.handler = withSentry({ captureErrors: false }, (event, context, c
 ```
 
 ## Version History
+
+### 2.2.0
+
+- Reset the scope on every Lambda start (if no custom Sentry client instance is used). This should avoid breadcrumbs and extras from previous runs "bleed" into subsequent Lambda invocations. Thanks to [demsey2](https://github.com/demsey2) for reporting the original issue.
+- Added a new `flushTimeout` option to control how long we want to wait for data being written to Sentry before the Lambda shuts down or between invocations.
+- Deprecated `captureMemoryWarnings` and `captureTimeoutWarnings` in favor of new options `captureMemory` and `captureTimeouts` which allow more customization. Thanks to [keanolane](https://github.com/keanolane) for suggesting of custom timeouts. This only affects users invoking `withSentry` with custom options. If you're using `serverless-sentry-plugin` to set all options you won't have to change anything.
+- Fixed an issue with custom tags, extras and user traits not being set when passed as options to `withSentry`. Thanks to [blelump](https://github.com/blelump) for reporting and providing a pull request.
 
 ### 2.1.0
 

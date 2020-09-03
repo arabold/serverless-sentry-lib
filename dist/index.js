@@ -136,11 +136,11 @@ function initSentry(options) {
 }
 // Timers
 /** Watch memory usage */
-var memoryWatch;
+var memoryWatchTimer;
 /** Warn if we're about to reach the timeout */
-var timeoutWarning;
+var timeoutWarningTimer;
 /** Error if timeout is reached */
-var timeoutError;
+var timeoutErrorTimer;
 /**
  * Install Watchdog timers
  *
@@ -148,8 +148,15 @@ var timeoutError;
  * @param lambdaContext
  */
 function installTimers(sentryClient, pluginConfig, lambdaContext) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
     var timeRemaining = lambdaContext.getRemainingTimeInMillis();
     var memoryLimit = Number(lambdaContext.memoryLimitInMB);
+    var flushTimeout = (_c = (_a = pluginConfig.flushTimeout) !== null && _a !== void 0 ? _a : (_b = pluginConfig.sentryOptions) === null || _b === void 0 ? void 0 : _b.shutdownTimeout) !== null && _c !== void 0 ? _c : 2000;
+    var captureTimeouts = pluginConfig.captureTimeouts === true || ((_d = pluginConfig.captureTimeouts) === null || _d === void 0 ? void 0 : _d.enabled);
+    var timeoutWarningMsec = Math.floor((_f = (_e = pluginConfig.captureTimeouts) === null || _e === void 0 ? void 0 : _e.timeRemainingWarning) !== null && _f !== void 0 ? _f : timeRemaining / 2);
+    var timeoutErrorMsec = Math.floor((_h = (_g = pluginConfig.captureTimeouts) === null || _g === void 0 ? void 0 : _g.timeRemainingError) !== null && _h !== void 0 ? _h : flushTimeout);
+    var captureMemory = pluginConfig.captureMemory === true || ((_j = pluginConfig.captureMemory) === null || _j === void 0 ? void 0 : _j.enabled);
+    var captureMemoryInterval = Math.floor((_l = (_k = pluginConfig.captureMemory) === null || _k === void 0 ? void 0 : _k.interval) !== null && _l !== void 0 ? _l : 500);
     /** Watch for Lambdas approaching half of the defined timeout value */
     var timeoutWarningFunc = function (cb) {
         sentryClient.withScope(function (scope) {
@@ -160,7 +167,7 @@ function installTimers(sentryClient, pluginConfig, lambdaContext) {
             sentryClient.captureMessage("Function Execution Time Warning");
         });
         sentryClient
-            .flush(2000)
+            .flush(flushTimeout)
             .then(function () { return cb === null || cb === void 0 ? void 0 : cb(); })
             .catch(null);
     };
@@ -174,7 +181,7 @@ function installTimers(sentryClient, pluginConfig, lambdaContext) {
             sentryClient.captureMessage("Function Timed Out");
         });
         sentryClient
-            .flush(2000)
+            .flush(flushTimeout)
             .then(function () { return cb === null || cb === void 0 ? void 0 : cb(); })
             .catch(null);
     };
@@ -192,47 +199,51 @@ function installTimers(sentryClient, pluginConfig, lambdaContext) {
                 sentryClient.captureMessage("Low Memory Warning");
             });
             sentryClient
-                .flush(2000)
+                .flush(flushTimeout)
                 .then(function () { return cb === null || cb === void 0 ? void 0 : cb(); })
                 .catch(null);
         }
         else {
             // The memory watchdog is triggered twice a second
-            memoryWatch = setTimeout(memoryWatchFunc, 500);
+            memoryWatchTimer = setTimeout(memoryWatchFunc, captureMemoryInterval);
         }
     };
-    if (pluginConfig.captureTimeoutWarnings) {
+    if (captureTimeouts &&
+        timeoutWarningMsec > 0 &&
+        timeoutErrorMsec > 0 &&
+        timeRemaining > timeoutWarningMsec &&
+        timeRemaining > timeoutErrorMsec) {
         // We schedule the warning at half the maximum execution time and
         // the error a few milliseconds before the actual timeout happens.
-        timeoutWarning = setTimeout(timeoutWarningFunc, timeRemaining / 2);
-        timeoutError = setTimeout(timeoutErrorFunc, Math.max(timeRemaining - 500, 0));
+        timeoutWarningTimer = setTimeout(timeoutWarningFunc, timeRemaining - timeoutWarningMsec);
+        timeoutErrorTimer = setTimeout(timeoutErrorFunc, timeRemaining - timeoutErrorMsec);
     }
-    if (pluginConfig.captureMemoryWarnings) {
+    if (captureMemory && captureMemoryInterval > 0) {
         // Schedule memory watch dog interval. Note that we're not using
         // setInterval() here as we don't want invokes to be skipped.
-        memoryWatch = setTimeout(memoryWatchFunc, 500);
+        memoryWatchTimer = setTimeout(memoryWatchFunc, captureMemoryInterval);
     }
 }
 /**
  * Stops and removes all timers
  */
 function clearTimers() {
-    if (timeoutWarning) {
-        clearTimeout(timeoutWarning);
-        timeoutWarning = null;
+    if (timeoutWarningTimer) {
+        clearTimeout(timeoutWarningTimer);
+        timeoutWarningTimer = null;
     }
-    if (timeoutError) {
-        clearTimeout(timeoutError);
-        timeoutError = null;
+    if (timeoutErrorTimer) {
+        clearTimeout(timeoutErrorTimer);
+        timeoutErrorTimer = null;
     }
-    if (memoryWatch) {
-        clearTimeout(memoryWatch);
-        memoryWatch = null;
+    if (memoryWatchTimer) {
+        clearTimeout(memoryWatchTimer);
+        memoryWatchTimer = null;
     }
 }
 function withSentry(arg1, arg2) {
     var _this = this;
-    var _a;
+    var _a, _b, _c, _d, _e;
     /** Original handler function */
     var handler;
     /** Custom Sentry client passed as function argument (optional) */
@@ -259,9 +270,18 @@ function withSentry(arg1, arg2) {
     }
     var options = __assign({ 
         // Set default options
-        scope: { tags: {}, extras: {}, user: {} }, captureErrors: parseBoolean(process.env.SENTRY_CAPTURE_ERRORS, true), captureUnhandledRejections: parseBoolean(process.env.SENTRY_CAPTURE_UNHANDLED, true), captureUncaughtException: parseBoolean(process.env.SENTRY_CAPTURE_UNCAUGHT, true), captureMemoryWarnings: parseBoolean(process.env.SENTRY_CAPTURE_MEMORY, true), captureTimeoutWarnings: parseBoolean(process.env.SENTRY_CAPTURE_TIMEOUTS, true), autoBreadcrumbs: parseBoolean(process.env.SENTRY_AUTO_BREADCRUMBS, true), filterLocal: parseBoolean(process.env.SENTRY_FILTER_LOCAL, true), sourceMaps: parseBoolean(process.env.SENTRY_SOURCEMAPS, false) }, customOptions);
+        scope: { tags: {}, extras: {}, user: {} }, captureErrors: parseBoolean(process.env.SENTRY_CAPTURE_ERRORS, true), captureUnhandledRejections: parseBoolean(process.env.SENTRY_CAPTURE_UNHANDLED, true), captureUncaughtException: parseBoolean(process.env.SENTRY_CAPTURE_UNCAUGHT, true), captureMemory: parseBoolean(process.env.SENTRY_CAPTURE_MEMORY, true), captureTimeouts: parseBoolean(process.env.SENTRY_CAPTURE_TIMEOUTS, true), autoBreadcrumbs: parseBoolean(process.env.SENTRY_AUTO_BREADCRUMBS, true), filterLocal: parseBoolean(process.env.SENTRY_FILTER_LOCAL, true), sourceMaps: parseBoolean(process.env.SENTRY_SOURCEMAPS, false) }, customOptions);
+    if (typeof options.captureMemoryWarnings !== "undefined") {
+        console.warn("`WithSentryOptions#captureMemoryWarnings` is deprecated. Use `captureMemory` instead!");
+        options.captureMemory = (_a = options.captureMemory) !== null && _a !== void 0 ? _a : options.captureMemoryWarnings;
+    }
+    if (typeof options.captureTimeoutWarnings !== "undefined") {
+        console.warn("`WithSentryOptions#captureTimeoutWarnings` is deprecated. Use `captureTimeouts` instead!");
+        options.captureTimeouts = (_b = options.captureTimeouts) !== null && _b !== void 0 ? _b : options.captureTimeoutWarnings;
+    }
     // Install sentry
-    var sentryClient = (_a = customSentryClient !== null && customSentryClient !== void 0 ? customSentryClient : options.sentry) !== null && _a !== void 0 ? _a : initSentry(options);
+    var sentryClient = (_c = customSentryClient !== null && customSentryClient !== void 0 ? customSentryClient : options.sentry) !== null && _c !== void 0 ? _c : initSentry(options);
+    var flushTimeout = (_d = options.flushTimeout) !== null && _d !== void 0 ? _d : (_e = options.sentryOptions) === null || _e === void 0 ? void 0 : _e.shutdownTimeout;
     // Create a new handler function wrapping the original one and hooking into all callbacks
     return function (event, context, callback) {
         var _a, _b, _c, _d, _e;
@@ -298,26 +318,24 @@ function withSentry(arg1, arg2) {
         if (identity) {
             // Track the caller's Cognito identity
             // id, username and ip_address are key fields in Sentry
-            additionalScope.user = {
-                id: identity.cognitoIdentityId || undefined,
-                username: identity.user || undefined,
-                ip_address: identity.sourceIp || undefined,
-                cognito_identity_pool_id: identity.cognitoIdentityPoolId,
-                cognito_authentication_type: identity.cognitoAuthenticationType,
-                user_agent: identity.userAgent,
-            };
+            additionalScope.user = __assign(__assign({}, additionalScope.user), { id: identity.cognitoIdentityId || undefined, username: identity.user || undefined, ip_address: identity.sourceIp || undefined, cognito_identity_pool_id: identity.cognitoIdentityPoolId, cognito_authentication_type: identity.cognitoAuthenticationType, user_agent: identity.userAgent });
         }
         // Add additional tags for AWS_PROXY endpoints
         if (event.requestContext) {
             additionalScope.tags = __assign(__assign({}, additionalScope.tags), { api_id: event.requestContext.apiId, api_stage: event.requestContext.stage, http_method: event.requestContext.httpMethod });
         }
         sentryClient.configureScope(function (scope) {
-            additionalScope.user && scope.setUser(additionalScope.user);
-            additionalScope.extras && scope.setExtras(additionalScope.extras);
-            additionalScope.tags && scope.setTags(additionalScope.tags);
+            var _a, _b, _c;
+            if (!customSentryClient) {
+                // Make sure we work with a clean scope as AWS is reusing our Lambda instance if it's already warm
+                scope.clear();
+            }
+            scope.setUser(__assign(__assign({}, additionalScope.user), (_a = options.scope) === null || _a === void 0 ? void 0 : _a.user));
+            scope.setExtras(__assign(__assign({}, additionalScope.extras), (_b = options.scope) === null || _b === void 0 ? void 0 : _b.extras));
+            scope.setTags(__assign(__assign({}, additionalScope.tags), (_c = options.scope) === null || _c === void 0 ? void 0 : _c.tags));
         });
         // Monitor for timeouts and memory usage
-        // The timers will be removed in the wrappedCtx and wrappedCb below
+        // The timers will be removed in `finalize` function below
         installTimers(sentryClient, options, context);
         var unhandledRejectionListener = function (err, p) {
             sentryClient.withScope(function (scope) {
@@ -337,12 +355,12 @@ function withSentry(arg1, arg2) {
             sentryClient.withScope(function (scope) {
                 scope.setLevel(SentryLib.Severity.Fatal);
                 sentryClient.captureException(err);
-                // Now exit the process; there is no recovery from this
-                sentryClient
-                    .close(2000)
-                    .then(function () { return process.exit(1); })
-                    .catch(function () { return process.exit(1); });
             });
+            // Now exit the process; there is no recovery from this
+            sentryClient
+                .close(flushTimeout)
+                .then(function () { return process.exit(1); })
+                .catch(function () { return process.exit(1); });
         };
         if (options.captureUncaughtException) {
             // Enable capturing of uncaught exceptions
@@ -360,7 +378,7 @@ function withSentry(arg1, arg2) {
                         if (!!customSentryClient) return [3 /*break*/, 2];
                         // Use `flush`, not `close` here as the Lambda might be kept alive and we don't want
                         // to break our Sentry instance
-                        return [4 /*yield*/, sentryClient.flush(2000)];
+                        return [4 /*yield*/, sentryClient.flush(flushTimeout)];
                     case 1:
                         // Use `flush`, not `close` here as the Lambda might be kept alive and we don't want
                         // to break our Sentry instance
@@ -393,12 +411,12 @@ function withSentry(arg1, arg2) {
                 sentryClient.captureException(err);
             }
             finalize()
-                .finally(function () { return callback(err, data); })
+                .finally(function () { return callback(err, data); }) // invoke the original callback
                 .catch(null);
         });
         if (!callbackCalled && typeof response === "object" && typeof response.then === "function") {
             // The handler returned a promise instead of invoking the callback function
-            return (function () { return __awaiter(_this, void 0, void 0, function () {
+            var resolveResponseAsync = function () { return __awaiter(_this, void 0, void 0, function () {
                 var err_1;
                 return __generator(this, function (_a) {
                     switch (_a.label) {
@@ -425,7 +443,8 @@ function withSentry(arg1, arg2) {
                         case 5: return [2 /*return*/];
                     }
                 });
-            }); })();
+            }); };
+            return resolveResponseAsync();
         }
         else {
             return response;

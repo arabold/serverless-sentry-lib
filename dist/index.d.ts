@@ -5,6 +5,24 @@ import { Callback, Context } from "aws-lambda";
  * See {@link https://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-context.html AWS documentation}.
  */
 export declare type Handler<TEvent = any, TResult = any> = (event: TEvent, context: Context, callback: Callback<TResult>) => void | Promise<TResult>;
+export declare type CaptureMemoryOptions = {
+    enabled: boolean;
+    /**
+     * How often to check for low memory warnings (in milliseconds; defaults to 500)
+     */
+    interval?: number;
+};
+export declare type CaptureTimeoutOptions = {
+    enabled: boolean;
+    /**
+     * When to generate a warning (defaults to half of the remaining Lambda execution time)
+     */
+    timeRemainingWarning?: number;
+    /**
+     * When to generate an error (defaults to `500` milliseconds before the Lambda will actually timeout)
+     */
+    timeRemainingError?: number;
+};
 /**
  * Serverless Sentry Lib Configuration
  */
@@ -41,6 +59,10 @@ export declare type WithSentryOptions = {
      * Only has an effect if no custom Sentry instance is used.
      */
     sourceMaps?: boolean;
+    /**
+     * Optional timeout when flushing Sentry events before exiting the Lambda (in millisecs)
+     */
+    flushTimeout?: number;
     /** Automatically create breadcrumbs (see Sentry SDK docs, default to `true`) */
     autoBreadcrumbs?: boolean;
     /** Capture Lambda errors (defaults to `true`) */
@@ -49,10 +71,20 @@ export declare type WithSentryOptions = {
     captureUnhandledRejections?: boolean;
     /** Capture uncaught exceptions (defaults to `true`) */
     captureUncaughtException?: boolean;
-    /** Monitor memory usage (defaults to `true`) */
+    /**
+     * Monitor memory usage (defaults to `true`)
+     * @deprecated - use `captureMemory` instead
+     */
     captureMemoryWarnings?: boolean;
-    /** Monitor execution timeouts (defaults to `true`) */
+    /** Monitor memory usage (defaults to `true`) */
+    captureMemory?: boolean | CaptureMemoryOptions;
+    /**
+     * Monitor execution timeouts (defaults to `true`)
+     * @deprecated - use `captureTimeouts` instead
+     */
     captureTimeoutWarnings?: boolean;
+    /** Monitor execution timeouts (defaults to `true`) */
+    captureTimeouts?: boolean | CaptureTimeoutOptions;
 };
 /**
  * Higher Order Function to Wrap a Lambda Functions Handler
