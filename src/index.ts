@@ -1,5 +1,11 @@
-/* eslint-disable promise/no-promise-in-callback, promise/no-callback-in-promise */
+/* eslint-disable promise/no-promise-in-callback */
+/* eslint-disable promise/no-callback-in-promise */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
+import path from "path";
+
+import { RewriteFrames } from "@sentry/integrations";
 import * as SentryLib from "@sentry/node";
 import { Callback, Context } from "aws-lambda";
 
@@ -117,7 +123,10 @@ function parseBoolean(value: any, defaultValue: boolean = false): boolean {
 
 /** Type Guard: Check if passed value is a Sentry instance */
 function isSentryInstance(value: any): value is typeof SentryLib {
-  return typeof value?.captureException === "function" && typeof value?.captureMessage === "function";
+  return (
+    typeof (value as typeof SentryLib)?.captureException === "function" &&
+    typeof (value as typeof SentryLib)?.captureMessage === "function"
+  );
 }
 
 /**
@@ -151,14 +160,12 @@ function initSentry(options: WithSentryOptions): typeof SentryLib | undefined {
     const rewriteFramesLoaded = sentryOptions.integrations?.find((integration) => integration.name === "RewriteFrames");
     if (!rewriteFramesLoaded) {
       try {
-        const { RewriteFrames } = require("@sentry/integrations");
-        const path = require("path");
         sentryOptions.integrations = [
           ...(sentryOptions.integrations ?? []),
           new RewriteFrames({
             iteratee: (frame: SentryLib.StackFrame) => {
               if (frame.filename?.startsWith("/") && !frame.filename.includes("/node_modules/")) {
-                frame.filename = "app:///" + path.basename(frame.filename);
+                frame.filename = `app:///${path.basename(frame.filename)}`;
               }
               return frame;
             },
@@ -177,6 +184,15 @@ function initSentry(options: WithSentryOptions): typeof SentryLib | undefined {
     dsn: process.env.SENTRY_DSN,
     release: process.env.SENTRY_RELEASE,
     environment: isLocalEnv ? "Local" : process.env.SENTRY_ENVIRONMENT,
+    integrations: function (integrations) {
+      // Integrations will be all default integrations. When installing our own rejection and
+      // exception handlers, we want to remove the default integrations instead.
+      return integrations.filter(
+        (integration) =>
+          (!options.captureUncaughtException || integration.name !== SentryLib.Integrations.OnUncaughtException.id) &&
+          (!options.captureUnhandledRejections || integration.name !== SentryLib.Integrations.OnUnhandledRejection.id),
+      );
+    },
     ...sentryOptions,
   });
 
@@ -464,6 +480,7 @@ export function withSentry<TEvent = any, TResult = any>(
     // The timers will be removed in `finalize` function below
     installTimers(sentryClient, options, context);
 
+    let originalRejectionListeners: NodeJS.UnhandledRejectionListener[] = [];
     const unhandledRejectionListener = (err: any, p: Promise<any>) => {
       sentryClient.withScope((scope) => {
         scope.setLevel(SentryLib.Severity.Error);
@@ -471,28 +488,37 @@ export function withSentry<TEvent = any, TResult = any>(
           Error: err,
           Promise: p,
         });
-        sentryClient.captureMessage(`Unhandled Promise Rejection - ${err}`);
+        sentryClient.captureMessage(`Unhandled Promise Rejection - ${String(err)}`);
       });
+      // Now invoke the original listeners so behavior remains largly unchanged
+      sentryClient
+        .flush(flushTimeout)
+        .then(() => originalRejectionListeners.forEach((listener) => listener(err, p)))
+        .catch(() => process.exit(1));
     };
     if (options.captureUnhandledRejections) {
       // Enable capturing of unhandled rejections
+      originalRejectionListeners = process.listeners("unhandledRejection");
+      process.removeAllListeners("unhandledRejection"); // remove any AWS handlers
       process.on("unhandledRejection", unhandledRejectionListener);
     }
 
+    let originalExceptionListeners: NodeJS.UncaughtExceptionListener[] = [];
     const uncaughtExceptionListener = (err: any) => {
       sentryClient.withScope((scope) => {
         scope.setLevel(SentryLib.Severity.Fatal);
         sentryClient.captureException(err);
       });
-      // Now exit the process; there is no recovery from this
+      // Now invoke the original listeners so behavior remains largly unchanged
       sentryClient
-        .close(flushTimeout)
-        .then(() => process.exit(1))
+        .flush(flushTimeout)
+        .then(() => originalExceptionListeners.forEach((listener) => listener(err)))
         .catch(() => process.exit(1));
     };
     if (options.captureUncaughtException) {
       // Enable capturing of uncaught exceptions
-      process.removeAllListeners("uncaughtException"); // there can be only one
+      originalExceptionListeners = process.listeners("uncaughtException");
+      process.removeAllListeners("uncaughtException"); // remove any AWS handlers
       process.on("uncaughtException", uncaughtExceptionListener);
     }
 
@@ -574,4 +600,4 @@ module.exports = withSentry;
 // TypeScript imports the `default` property for
 // an ES2015 default import (`import test from 'ava'`)
 // See: https://github.com/Microsoft/TypeScript/issues/2242#issuecomment-83694181
-module.exports.default = withSentry;
+module.exports.default = withSentry; // eslint-disable-line @typescript-eslint/no-unsafe-member-access

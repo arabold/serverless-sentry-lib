@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 import * as Sentry from "@sentry/node";
 import { Callback, Context, Handler } from "aws-lambda";
 import * as chai from "chai";
@@ -43,6 +47,7 @@ const mockSentry: typeof Sentry = {
     fn(mockScope as any);
   }),
   getCurrentHub: sandbox.spy(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return {
       getClient: () => ({ flush: () => Promise.resolve() }),
     } as any;

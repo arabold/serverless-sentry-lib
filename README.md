@@ -282,6 +282,11 @@ module.exports.handler = withSentry({ captureErrors: false }, (event, context, c
 
 ## Version History
 
+### 2.3.0
+
+- Override existing `unhandledRejection` and `uncaughtException` listeners when `captureUnhandledRejections` or `captureUncaughtExceptions` are enabled and invoke them _after_ we handled them. At the same time we disable Sentry's default integrations for both to avoid duplicate reporting. This works around a custom listener registered by AWS Lambda internally that prevents proper automatic handling with Sentry. Thanks to [ffxsam](https://github.com/ffxsam) for reporting the original issue. By updating the execution order of the listeners we keep side effects to a minimum. Please report back if you encounter any weird or unexpected behavior!
+- Upgraded all dependencies, use Typescript 4.0
+
 ### 2.2.0
 
 - Reset the scope on every Lambda start (if no custom Sentry client instance is used). This should avoid breadcrumbs and extras from previous runs "bleed" into subsequent Lambda invocations. Thanks to [demsey2](https://github.com/demsey2) for reporting the original issue.
