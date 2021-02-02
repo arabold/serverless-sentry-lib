@@ -14,7 +14,7 @@ The `serverless-sentry-plugin` and `serverless-sentry-lib` libraries are not aff
 ### Benefits
 
 - Easy to use. Promised 🤞
-- Integrates with [Serverless Framework](http://www.serverless.com) as well as the [AWS Serverless Application Model](https://aws.amazon.com/serverless/sam/) for AWS Lambda (though no use any framework is required).
+- Integrates with [Serverless Framework](http://www.serverless.com) as well as the [AWS Serverless Application Model](https://aws.amazon.com/serverless/sam/) for AWS Lambda (though no use of any framework is required).
 - Wraps your Node.js code with [Sentry](http://getsentry.com) error capturing.
 - Forwards any errors returned by your AWS Lambda function to Sentry.
 - Warn if your code is about to hit the execution timeout limit.
