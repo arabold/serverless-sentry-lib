@@ -233,7 +233,7 @@ function installTimers(sentryClient: typeof SentryLib, pluginConfig: WithSentryO
   /** Watch for Lambdas approaching half of the defined timeout value */
   const timeoutWarningFunc = (cb: Callback<any>) => {
     sentryClient.withScope((scope) => {
-      scope.setLevel(SentryLib.Severity.Warning);
+      scope.setLevel("warning");
       scope.setExtras({
         TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis(),
       });
@@ -248,7 +248,7 @@ function installTimers(sentryClient: typeof SentryLib, pluginConfig: WithSentryO
   /** Watch for Lambdas approaching timeouts; Note that we might not have enough time to even report this anymore */
   const timeoutErrorFunc = (cb: Callback<any>) => {
     sentryClient.withScope((scope) => {
-      scope.setLevel(SentryLib.Severity.Error);
+      scope.setLevel("error");
       scope.setExtras({
         TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis(),
       });
@@ -266,7 +266,7 @@ function installTimers(sentryClient: typeof SentryLib, pluginConfig: WithSentryO
     const p = used / memoryLimit;
     if (p >= 0.75) {
       sentryClient.withScope((scope) => {
-        scope.setLevel(SentryLib.Severity.Warning);
+        scope.setLevel("warning");
         scope.setExtras({
           MemoryLimitInMB: memoryLimit,
           MemoryUsedInMB: Math.floor(used),
@@ -483,7 +483,7 @@ export function withSentry<TEvent = any, TResult = any>(
     let originalRejectionListeners: NodeJS.UnhandledRejectionListener[] = [];
     const unhandledRejectionListener = (err: any, p: Promise<any>) => {
       sentryClient.withScope((scope) => {
-        scope.setLevel(SentryLib.Severity.Error);
+        scope.setLevel("error");
         scope.setExtras({
           Error: err,
           Promise: p,
@@ -506,13 +506,13 @@ export function withSentry<TEvent = any, TResult = any>(
     let originalExceptionListeners: NodeJS.UncaughtExceptionListener[] = [];
     const uncaughtExceptionListener = (err: any) => {
       sentryClient.withScope((scope) => {
-        scope.setLevel(SentryLib.Severity.Fatal);
+        scope.setLevel("fatal");
         sentryClient.captureException(err);
       });
       // Now invoke the original listeners so behavior remains largly unchanged
       sentryClient
         .flush(flushTimeout)
-        .then(() => originalExceptionListeners.forEach((listener) => listener(err)))
+        .then(() => originalExceptionListeners.forEach((listener) => listener(err, "uncaughtException")))
         .catch(() => process.exit(1));
     };
     if (options.captureUncaughtException) {
@@ -541,7 +541,7 @@ export function withSentry<TEvent = any, TResult = any>(
       const breadcrumb: SentryLib.Breadcrumb = {
         message: process.env.AWS_LAMBDA_FUNCTION_NAME,
         category: "lambda",
-        level: SentryLib.Severity.Info,
+        level: "info",
         data: {},
       };
       if (event.requestContext) {

@@ -50,12 +50,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __spreadArrays = (this && this.__spreadArrays) || function () {
-    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
-    for (var r = Array(s), k = 0, i = 0; i < il; i++)
-        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
-            r[k] = a[j];
-    return r;
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.withSentry = void 0;
@@ -83,9 +85,8 @@ function parseBoolean(value, defaultValue) {
 }
 /** Type Guard: Check if passed value is a Sentry instance */
 function isSentryInstance(value) {
-    var _a, _b;
-    return (typeof ((_a = value) === null || _a === void 0 ? void 0 : _a.captureException) === "function" &&
-        typeof ((_b = value) === null || _b === void 0 ? void 0 : _b.captureMessage) === "function");
+    return (typeof (value === null || value === void 0 ? void 0 : value.captureException) === "function" &&
+        typeof (value === null || value === void 0 ? void 0 : value.captureMessage) === "function");
 }
 /**
  * Initialize Sentry. This function is called by `withSentry` if no custom Sentry instance is
@@ -115,17 +116,17 @@ function initSentry(options) {
         var rewriteFramesLoaded = (_b = sentryOptions.integrations) === null || _b === void 0 ? void 0 : _b.find(function (integration) { return integration.name === "RewriteFrames"; });
         if (!rewriteFramesLoaded) {
             try {
-                sentryOptions.integrations = __spreadArrays(((_c = sentryOptions.integrations) !== null && _c !== void 0 ? _c : []), [
+                sentryOptions.integrations = __spreadArray(__spreadArray([], ((_c = sentryOptions.integrations) !== null && _c !== void 0 ? _c : []), true), [
                     new integrations_1.RewriteFrames({
                         iteratee: function (frame) {
                             var _a;
                             if (((_a = frame.filename) === null || _a === void 0 ? void 0 : _a.startsWith("/")) && !frame.filename.includes("/node_modules/")) {
-                                frame.filename = "app:///" + path_1.default.basename(frame.filename);
+                                frame.filename = "app:///".concat(path_1.default.basename(frame.filename));
                             }
                             return frame;
                         },
                     }),
-                ]);
+                ], false);
             }
             catch (error) {
                 console.warn("Failed to initialze sourcemaps", error);
@@ -172,7 +173,7 @@ function installTimers(sentryClient, pluginConfig, lambdaContext) {
     /** Watch for Lambdas approaching half of the defined timeout value */
     var timeoutWarningFunc = function (cb) {
         sentryClient.withScope(function (scope) {
-            scope.setLevel(SentryLib.Severity.Warning);
+            scope.setLevel("warning");
             scope.setExtras({
                 TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis(),
             });
@@ -186,7 +187,7 @@ function installTimers(sentryClient, pluginConfig, lambdaContext) {
     /** Watch for Lambdas approaching timeouts; Note that we might not have enough time to even report this anymore */
     var timeoutErrorFunc = function (cb) {
         sentryClient.withScope(function (scope) {
-            scope.setLevel(SentryLib.Severity.Error);
+            scope.setLevel("error");
             scope.setExtras({
                 TimeRemainingInMsec: lambdaContext.getRemainingTimeInMillis(),
             });
@@ -203,7 +204,7 @@ function installTimers(sentryClient, pluginConfig, lambdaContext) {
         var p = used / memoryLimit;
         if (p >= 0.75) {
             sentryClient.withScope(function (scope) {
-                scope.setLevel(SentryLib.Severity.Warning);
+                scope.setLevel("warning");
                 scope.setExtras({
                     MemoryLimitInMB: memoryLimit,
                     MemoryUsedInMB: Math.floor(used),
@@ -352,12 +353,12 @@ function withSentry(arg1, arg2) {
         var originalRejectionListeners = [];
         var unhandledRejectionListener = function (err, p) {
             sentryClient.withScope(function (scope) {
-                scope.setLevel(SentryLib.Severity.Error);
+                scope.setLevel("error");
                 scope.setExtras({
                     Error: err,
                     Promise: p,
                 });
-                sentryClient.captureMessage("Unhandled Promise Rejection - " + String(err));
+                sentryClient.captureMessage("Unhandled Promise Rejection - ".concat(String(err)));
             });
             // Now invoke the original listeners so behavior remains largly unchanged
             sentryClient
@@ -374,13 +375,13 @@ function withSentry(arg1, arg2) {
         var originalExceptionListeners = [];
         var uncaughtExceptionListener = function (err) {
             sentryClient.withScope(function (scope) {
-                scope.setLevel(SentryLib.Severity.Fatal);
+                scope.setLevel("fatal");
                 sentryClient.captureException(err);
             });
             // Now invoke the original listeners so behavior remains largly unchanged
             sentryClient
                 .flush(flushTimeout)
-                .then(function () { return originalExceptionListeners.forEach(function (listener) { return listener(err); }); })
+                .then(function () { return originalExceptionListeners.forEach(function (listener) { return listener(err, "uncaughtException"); }); })
                 .catch(function () { return process.exit(1); });
         };
         if (options.captureUncaughtException) {
@@ -415,7 +416,7 @@ function withSentry(arg1, arg2) {
             var breadcrumb = {
                 message: process.env.AWS_LAMBDA_FUNCTION_NAME,
                 category: "lambda",
-                level: SentryLib.Severity.Info,
+                level: "info",
                 data: {},
             };
             if (event.requestContext) {

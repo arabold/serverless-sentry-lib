@@ -41,10 +41,10 @@ const mockSentry: typeof Sentry = {
   captureMessage: sandbox.spy((message: string, level?: Sentry.Severity | undefined) => ""),
   captureException: sandbox.spy((exception: any) => ""),
   configureScope: sandbox.spy((fn: (scope: Sentry.Scope) => void) => {
-    fn(mockScope as any);
+    fn(mockScope as any as Sentry.Scope);
   }),
   withScope: sandbox.spy((fn: (scope: Sentry.Scope) => void) => {
-    fn(mockScope as any);
+    fn(mockScope as any as Sentry.Scope);
   }),
   getCurrentHub: sandbox.spy(() => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return

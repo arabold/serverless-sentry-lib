@@ -1,13 +1,15 @@
 # ⚡️ Easy Sentry SDK Integration For AWS Lambda
 
-[![serverless](http://public.serverless.com/badges/v3.svg)](http://www.serverless.com)
+[![serverless](https://img.shields.io/npm/dependency-version/serverless-sentry-lib/peer/serverless.svg?style=flat-square)](https://www.serverless.com)
+[![nodejs](https://img.shields.io/node/v/serverless-sentry-lib.svg?style=flat-square)](https://nodejs.org/)
 [![npm](https://img.shields.io/npm/v/serverless-sentry-lib.svg)](https://www.npmjs.com/package/serverless-sentry-lib)
 [![license](https://img.shields.io/github/license/arabold/serverless-sentry-lib.svg)](https://github.com/arabold/serverless-sentry-lib/blob/master/LICENSE)
-[![dependencies](https://img.shields.io/david/arabold/serverless-sentry-lib.svg)](https://www.npmjs.com/package/serverless-sentry-lib)
+[![dependencies](https://img.shields.io/librariesio/github/arabold/serverless-sentry-lib.svg)](https://www.npmjs.com/package/serverless-sentry-lib)
+[![prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://prettier.io/)
 
 ## About
 
-This library simplifies integration of Sentry's [@sentry/node](https://docs.sentry.io/clients/node/) library with AWS Lambda. The only supported platforms of this library are the [Lambda Runtimes for Node.js 10 and 12](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html). Python and Java support will require dedicated libraries. Pull requests are welcome!
+This library simplifies the integration of Sentry's [@sentry/node](https://docs.sentry.io/clients/node/) library with AWS Lambda. The only supported platforms of this library are the [Lambda Runtimes for Node.js 10 and 12](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html). Python and Java support will require dedicated libraries. Pull requests are welcome!
 
 The `serverless-sentry-plugin` and `serverless-sentry-lib` libraries are not affiliated with either Functional Software Inc., Sentry, Serverless or Amazon Web Services but developed independently and in my spare time.
 
@@ -20,7 +22,7 @@ The `serverless-sentry-plugin` and `serverless-sentry-lib` libraries are not aff
 - Warn if your code is about to hit the execution timeout limit.
 - Warn if your Lambda function is low on memory.
 - Reports unhandled promise rejections.
-- Catched and reports uncaught exceptions.
+- Catches and reports uncaught exceptions.
 - Serverless, Sentry and as well as this library are all Open Source. Yay! 🎉
 - TypeScript support
 
@@ -34,18 +36,18 @@ The `serverless-sentry-plugin` and `serverless-sentry-lib` libraries are not aff
   ```sh
   npm install --save serverless-sentry-lib
   ```
-- Check out the examples below how to integrate it with your project by updating `serverless.yml` as well as your Lambda handler code.
+- Check out the examples below on how to integrate it with your project by updating `serverless.yml` as well as your Lambda handler code.
 
 Although this library is written in TypeScript, the resulting library uses exclusively Node 10 features to ensure this code can run on AWS Lambda without any additional transpiling or further processing. We also do not use _any_ 3rd party node module other than `@sentry/node` itself.
 
 This library can be used standalone or as part of the [Serverless Sentry Plugin](https://github.com/arabold/serverless-sentry-plugin).
 
-### Use as Standalone Library
+### Use as a Standalone Library
 
 If you don't want to add another plugin to Serverless (or if you're not using the Serverless Framework), you can use this library standalone without additional dependencies (besides `@sentry/node` itself).
 
 If you're using the Serverless Framework, extend your `serverless.yml` to include additional environment variables. The only _required_ environment variable is `SENTRY_DSN`
-to set the [DSN url](https://docs.sentry.io/quickstart/#configure-the-dsn) for your reporting. A full list of all available environment variables is available below.
+to set the [DSN URL](https://docs.sentry.io/quickstart/#configure-the-dsn) for your reporting. A full list of all available environment variables is available below.
 
 ```yaml
 service: my-serverless-project
@@ -76,22 +78,7 @@ Resources:
 ### Environment Variables
 
 Capturing can be controlled through the following environment variables. You can set them manually in your `serverless.yml` (Serverless Framework) or `template.yml` (AWS SAM) or let them be configured automatically using the [Serverless Sentry Plugin](https://github.com/arabold/serverless-sentry-plugin) during deployment.
-
-| Environment Variable       | Description                                                                        |
-| -------------------------- | ---------------------------------------------------------------------------------- |
-| `SENTRY_DSN`               | Sentry DSN Url                                                                     |
-| `SENTRY_ENVIRONMENT`       | Environment (optional, e.g. "`dev`" or "`prod`")                                   |
-| `SENTRY_RELEASE`           | Release number or version of your project (optional)                               |
-| `SENTRY_AUTO_BREADCRUMBS`  | Automatically create breadcrumbs (see Sentry SDK docs, default to `true`)          |
-| `SENTRY_FILTER_LOCAL`      | Don't report errors from local environments (defaults to `true`)                   |
-| `SENTRY_CAPTURE_ERRORS`    | Enable capturing Lambda errors (defaults to `true`)                                |
-| `SENTRY_CAPTURE_UNHANDLED` | Enable capturing unhandled Promise rejections (defaults to `true`)                 |
-| `SENTRY_CAPTURE_UNCAUGHT`  | Enable capturing uncaught exceptions (defaults to `true`)                          |
-| `SENTRY_CAPTURE_MEMORY`    | Enable monitoring memory usage (defaults to `true`)                                |
-| `SENTRY_CAPTURE_TIMEOUTS`  | Enable monitoring execution timeouts (defaults to `true`)                          |
-| `SENTRY_SOURCEMAPS`        | Enable [Webpack](https://webpack.js.org/) sourcemaps support (defaults to `false`) |
-
-In addition the library checks for the following optional variables and adds them as custom Sentry tags automatically:
+In addition, the library checks for the following optional variables and adds them as custom Sentry tags automatically:
 
 | Environment Variable | Sentry Tag   | Description                                                                                             |
 | -------------------- | ------------ | ------------------------------------------------------------------------------------------------------- |
@@ -120,9 +107,9 @@ You can still manually set environment variables on a per-function level to over
 
 ## Updating Your Code
 
-For maximum flexibility this library is implemented as a wrapper around your original AWS Lambda handler code (your `handler.js` or similar function). The `withSentry` higher-order function adds error and exception handling, and takes care of configuring the Sentry client automatically.
+For maximum flexibility, this library is implemented as a wrapper around your original AWS Lambda handler code (your `handler.js` or similar function). The `withSentry` higher-order function adds error and exception handling and takes care of configuring the Sentry client automatically.
 
-`withSentry` is pre-configured to reasonable defaults and doesn't need any configuration. If will automatically load and configure `@sentry/node` which needs to be installed as a peer dependency.
+`withSentry` is pre-configured to reasonable defaults and doesn't need any configuration. It will automatically load and configure `@sentry/node` which needs to be installed as a peer dependency.
 
 **Original Lambda Handler Code**:
 
@@ -179,9 +166,9 @@ You can control how Sentry should be initialized by passing the following option
 
 Or, alternatively, you can pass in a custom, already preconfigured Sentry object. Note that Sentry _needs_ to be properly initialized in this case:
 
-- `sentry` - Use the given Sentry instance instead instead of importing it automatically.
+- `sentry` - Use the given Sentry instance instead of importing it automatically.
 
-In addition you can set any of the following options to control what events should be captured:
+In addition, you can set any of the following options to control what events should be captured:
 
 - `flushTimeout` - How long we should wait for Sentry data to be written when shutting down the Lambda or between invocations (defaults to `2000` milliseconds).
 - `autoBreadcrumbs` - Automatically create breadcrumbs (see Sentry SDK docs, defaults to `true`).
@@ -266,10 +253,10 @@ Only one low memory warning will be generated per function invocation. You might
 
 ### Turn Sentry Reporting On/Off
 
-Obviously Sentry reporting is only enabled if you wrap your code using `withSentry` as shown in the examples above. In addition, error
+Sentry reporting is only enabled if you wrap your code using `withSentry` as shown in the examples above. In addition, error
 reporting is only active if the `SENTRY_DSN` environment variable is set or if you explicitly pass `{ sentryOptions: { dsn } }` as configuration options. This is an easy way to enable or disable reporting as a whole or for specific functions.
 
-In some cases it might be desirable to disable only error reporting itself but keep the advanced features such as timeout and low memory warnings in place. This can be achieved via setting the respective options in the environment variables or `withSentry` during initialization:
+In some cases, it might be desirable to disable only error reporting itself but keep the advanced features such as timeout and low memory warnings in place. This can be achieved via setting the respective options in the environment variables or `withSentry` during initialization:
 
 ```js
 const withSentry = require("serverless-sentry-lib");
@@ -282,6 +269,12 @@ module.exports.handler = withSentry({ captureErrors: false }, (event, context, c
 
 ## Version History
 
+### 2.5.0
+
+- Added support for @sentry/node v7. This is the recommended version now!
+- @sentry/integrations is a peer dependency only now.
+- Updated dependencies
+
 ### 2.4.0
 
 - Updated dependencies
@@ -293,15 +286,15 @@ module.exports.handler = withSentry({ captureErrors: false }, (event, context, c
 
 ### 2.2.0
 
-- Reset the scope on every Lambda start (if no custom Sentry client instance is used). This should avoid breadcrumbs and extras from previous runs "bleed" into subsequent Lambda invocations. Thanks to [demsey2](https://github.com/demsey2) for reporting the original issue.
-- Added a new `flushTimeout` option to control how long we want to wait for data being written to Sentry before the Lambda shuts down or between invocations.
-- Deprecated `captureMemoryWarnings` and `captureTimeoutWarnings` in favor of new options `captureMemory` and `captureTimeouts` which allow more customization. Thanks to [keanolane](https://github.com/keanolane) for suggesting of custom timeouts. This only affects users invoking `withSentry` with custom options. If you're using `serverless-sentry-plugin` to set all options you won't have to change anything.
+- Reset the scope on every Lambda start (if no custom Sentry client instance is used). This should avoid breadcrumbs and extras from previous runs "bleeding" into subsequent Lambda invocations. Thanks to [demsey2](https://github.com/demsey2) for reporting the original issue.
+- Added a new `flushTimeout` option to control how long we want to wait for data to be written to Sentry before the Lambda shuts down or between invocations.
+- Deprecated `captureMemoryWarnings` and `captureTimeoutWarnings` in favor of new options `captureMemory` and `captureTimeouts` which allow more customization. Thanks to [keanolane](https://github.com/keanolane) for suggesting custom timeouts. This only affects users invoking `withSentry` with custom options. If you're using `serverless-sentry-plugin` to set all options you won't have to change anything.
 - Fixed an issue with custom tags, extras and user traits not being set when passed as options to `withSentry`. Thanks to [blelump](https://github.com/blelump) for reporting and providing a pull request.
 
 ### 2.1.0
 
-- Explicitly check environment variables `IS_OFFLINE` and `IS_LOCAL` for truthy strings (`yes`, `on`, `true`, `t`, or `1`). Thanks to [danilofuchs](https://github.com/danilofuchs) for suggesting.
-- Flush to Sentry when the Lambda function finishes but don't close Sentry yet as we might get called again. [#23](https://github.com/arabold/serverless-sentry-lib/issues/23)
+- Explicitly check environment variables `IS_OFFLINE` and `IS_LOCAL` for truthy strings (`yes`, `on`, `true`, `t`, or `1`). Thanks to [danilofuchs](https://github.com/danilofuchs) for suggesting it.
+- Flush to Sentry when the Lambda function finishes but doesn't close Sentry yet as we might get called again. [#23](https://github.com/arabold/serverless-sentry-lib/issues/23)
 
 ### 2.0.1
 
@@ -313,7 +306,7 @@ module.exports.handler = withSentry({ captureErrors: false }, (event, context, c
 - Added new default uncaught exception handler.
 - Dropped support for Node.js 6 and 8. The only supported versions are Node.js 10 and 12.
 - Upgrade from Sentry SDK `raven` to the _Unified Node.js SDK_ [`@sentry/node`](https://docs.sentry.io/error-reporting/configuration/?platform=node).
-- Simplified integration using `withSentry` higher order function. Passing the Sentry instance is now optional.
+- Simplified integration using `withSentry` higher-order function. Passing the Sentry instance is now optional.
 - Thank you [@aheissenberger](https://github.com/aheissenberger) and [@Vadorequest](https://github.com/Vadorequest) for their contributions to this release! 🤗
 
 ### Support
