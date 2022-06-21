@@ -1,7 +1,7 @@
 # ⚡️ Easy Sentry SDK Integration For AWS Lambda
 
-[![serverless](https://img.shields.io/npm/dependency-version/serverless-sentry-lib/peer/serverless.svg?style=flat-square)](https://www.serverless.com)
 [![nodejs](https://img.shields.io/node/v/serverless-sentry-lib.svg?style=flat-square)](https://nodejs.org/)
+[![@sentry/node](https://img.shields.io/npm/dependency-version/serverless-sentry-lib/peer/@sentry/node.svg?style=flat-square)](https://sentry.io/)
 [![npm](https://img.shields.io/npm/v/serverless-sentry-lib.svg)](https://www.npmjs.com/package/serverless-sentry-lib)
 [![license](https://img.shields.io/github/license/arabold/serverless-sentry-lib.svg)](https://github.com/arabold/serverless-sentry-lib/blob/master/LICENSE)
 [![dependencies](https://img.shields.io/librariesio/github/arabold/serverless-sentry-lib.svg)](https://www.npmjs.com/package/serverless-sentry-lib)
