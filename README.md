@@ -1,4 +1,4 @@
-# ⚡️ Easy Sentry SDK Integration For AWS Lambda
+# ⚡️ Serverless Sentry Lib
 
 [![nodejs](https://img.shields.io/node/v/serverless-sentry-lib.svg?style=flat-square)](https://nodejs.org/)
 [![@sentry/node](https://img.shields.io/npm/dependency-version/serverless-sentry-lib/peer/@sentry/node.svg?style=flat-square)](https://sentry.io/)
@@ -9,7 +9,7 @@
 
 ## About
 
-This library simplifies the integration of Sentry's [@sentry/node](https://docs.sentry.io/clients/node/) library with AWS Lambda. The only supported platforms of this library are the [Lambda Runtimes for Node.js 10 and 12](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html). Python and Java support will require dedicated libraries. Pull requests are welcome!
+This library simplifies the integration of Sentry's [@sentry/node](https://docs.sentry.io/clients/node/) library with AWS Lambda. The only supported platforms of this library are the [Lambda Runtimes for Node.js 12, 14, and 16](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html). Python and Java support will require dedicated libraries. Pull requests are welcome!
 
 The `serverless-sentry-plugin` and `serverless-sentry-lib` libraries are not affiliated with either Functional Software Inc., Sentry, Serverless or Amazon Web Services but developed independently and in my spare time.
 
@@ -28,9 +28,9 @@ The `serverless-sentry-plugin` and `serverless-sentry-lib` libraries are not aff
 
 ## Installation
 
-- Install the `@sentry/node` module:
+- Install the `@sentry/node` and `@sentry/integrations` modules:
   ```sh
-  npm install --save @sentry/node
+  npm install --save @sentry/node @sentry/integrations
   ```
 - Install this module:
   ```sh
@@ -38,16 +38,15 @@ The `serverless-sentry-plugin` and `serverless-sentry-lib` libraries are not aff
   ```
 - Check out the examples below on how to integrate it with your project by updating `serverless.yml` as well as your Lambda handler code.
 
-Although this library is written in TypeScript, the resulting library uses exclusively Node 10 features to ensure this code can run on AWS Lambda without any additional transpiling or further processing. We also do not use _any_ 3rd party node module other than `@sentry/node` itself.
+Although this library is written in TypeScript, the resulting library uses exclusively Node 10 features to ensure this code can run on AWS Lambda without any additional transpiling or further processing. We also do not use _any_ 3rd party node module other than `@sentry/node` and `@sentry/integrations` which you fully control yourself.
 
 This library can be used standalone or as part of the [Serverless Sentry Plugin](https://github.com/arabold/serverless-sentry-plugin).
 
 ### Use as a Standalone Library
 
-If you don't want to add another plugin to Serverless (or if you're not using the Serverless Framework), you can use this library standalone without additional dependencies (besides `@sentry/node` itself).
+If you don't want to add another plugin to Serverless (or if you're not using the Serverless Framework), you can use this library standalone without additional dependencies (besides `@sentry/node` and `@sentry/integrations`).
 
-If you're using the Serverless Framework, extend your `serverless.yml` to include additional environment variables. The only _required_ environment variable is `SENTRY_DSN`
-to set the [DSN URL](https://docs.sentry.io/quickstart/#configure-the-dsn) for your reporting. A full list of all available environment variables is available below.
+If you're using the Serverless Framework, extend your `serverless.yml` to include additional environment variables. The only _required_ environment variable is `SENTRY_DSN` to set the [DSN URL](https://docs.sentry.io/quickstart/#configure-the-dsn) for your reporting. A full list of all available environment variables is available below.
 
 ```yaml
 service: my-serverless-project
@@ -77,8 +76,7 @@ Resources:
 
 ### Environment Variables
 
-Capturing can be controlled through the following environment variables. You can set them manually in your `serverless.yml` (Serverless Framework) or `template.yml` (AWS SAM) or let them be configured automatically using the [Serverless Sentry Plugin](https://github.com/arabold/serverless-sentry-plugin) during deployment.
-In addition, the library checks for the following optional variables and adds them as custom Sentry tags automatically:
+Capturing can be controlled through the following environment variables. You can set them manually in your `serverless.yml` (Serverless Framework) or `template.yml` (AWS SAM) or let them be configured automatically using the [Serverless Sentry Plugin](https://github.com/arabold/serverless-sentry-plugin) during deployment. In addition, the library checks for the following optional variables and adds them as custom Sentry tags automatically:
 
 | Environment Variable | Sentry Tag   | Description                                                                                             |
 | -------------------- | ------------ | ------------------------------------------------------------------------------------------------------- |
@@ -89,7 +87,7 @@ In addition, the library checks for the following optional variables and adds th
 
 ### Use Together With the Serverless Sentry Plugin
 
-The [Serverless Sentry Plugin](https://github.com/arabold/serverless-sentry-plugin) allows simpler configuration of the library through the `serverless.yml` and will upload your source-maps automatically during deployment. This is the recommended way of using the `serverless-sentry-lib` library.
+The [Serverless Sentry Plugin](https://github.com/arabold/serverless-sentry-plugin) allows simpler configuration of the library through the `serverless.yml` and will upload your source maps automatically during deployment. This is the recommended way of using the `serverless-sentry-lib` library.
 
 Instead of manually setting environment variables, the plugin determines and sets them automatically. In the `serverless.yml` simply load the plugin and set the `dsn` configuration option as follows:
 
@@ -239,7 +237,7 @@ Typically, if your Lambda code throws an unhandled exception somewhere in the co
 
 ### Local Development
 
-By default the library will only forward errors to Sentry when deployed on AWS Lambda, not during local development. If you want to change this behavior set the `filterLocal` option to `false`.
+By default, the library will only forward errors to Sentry when deployed on AWS Lambda, not during local development. If you want to change this behavior set the `filterLocal` option to `false`.
 
 ### Detecting Slow Running Code
 
