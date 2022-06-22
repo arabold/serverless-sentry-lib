@@ -47,6 +47,7 @@
     "getsentry.com"
   ],
   "peerDependencies": {
+    "@sentry/integrations": "^>=5",
     "@sentry/node": ">=5"
   },
   "devDependencies": {

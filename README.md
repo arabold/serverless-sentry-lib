@@ -269,10 +269,13 @@ module.exports.handler = withSentry({ captureErrors: false }, (event, context, c
 
 ## Version History
 
+### 2.5.1
+
+- `@sentry/integrations` is a peer dependency now. Make sure to install it in your project!
+
 ### 2.5.0
 
-- Added support for @sentry/node v7. This is the recommended version now!
-- @sentry/integrations is a peer dependency only now.
+- Added support for `@sentry/node` v7. This is the recommended version now.
 - Updated dependencies
 
 ### 2.4.0
